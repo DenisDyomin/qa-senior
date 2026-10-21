@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QA: middle → senior</title>
+<link rel="stylesheet" href="./styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="QA senior">
+<meta name="theme-color" content="#0f1115">
+</head>
+<body>
+<div id="app"></div>
+<script src="./src/core/registry.js"></script>
+<script src="./src/core/md.js"></script>
+<script src="./src/core/store.js"></script>
+<script src="./src/core/router.js"></script>
+<script src="./src/core/sqlrunner.js"></script>
+<script src="./src/core/ui.js"></script>
+<!-- CONTENT:START -->
+<script src="./content/00-modules.js"></script>
+<script src="./content/glossary.js"></script>
+<script src="./content/m1-strategy-tasks.js"></script>
+<script src="./content/m1-strategy-topics.js"></script>
+<script src="./content/m10-autoarch-tasks.js"></script>
+<script src="./content/m10-autoarch-topics.js"></script>
+<script src="./content/m11-obs-tasks.js"></script>
+<script src="./content/m11-obs-topics.js"></script>
+<script src="./content/m12-mobile-tasks.js"></script>
+<script src="./content/m12-mobile-topics.js"></script>
+<script src="./content/m13-ai-tasks.js"></script>
+<script src="./content/m13-ai-topics.js"></script>
+<script src="./content/m14-soft-tasks.js"></script>
+<script src="./content/m14-soft-topics.js"></script>
+<script src="./content/m15-go-tasks.js"></script>
+<script src="./content/m15-go-topics.js"></script>
+<script src="./content/m16-sdet-dev-tasks.js"></script>
+<script src="./content/m16-sdet-dev-topics.js"></script>
+<script src="./content/m17-infra-tasks.js"></script>
+<script src="./content/m17-infra-topics.js"></script>
+<script src="./content/m18-agile-tasks.js"></script>
+<script src="./content/m18-agile-topics.js"></script>
+<script src="./content/m19-devops-tasks.js"></script>
+<script src="./content/m19-devops-topics.js"></script>
+<script src="./content/m2-design-tasks.js"></script>
+<script src="./content/m2-design-topics.js"></script>
+<script src="./content/m20-infra-ops-tasks.js"></script>
+<script src="./content/m20-infra-ops-topics.js"></script>
+<script src="./content/m3-requirements-tasks.js"></script>
+<script src="./content/m3-requirements-topics.js"></script>
+<script src="./content/m4-arch-tasks.js"></script>
+<script src="./content/m4-arch-topics.js"></script>
+<script src="./content/m5-api-tasks.js"></script>
+<script src="./content/m5-api-topics.js"></script>
+<script src="./content/m6-sql-tasks.js"></script>
+<script src="./content/m6-sql-topics.js"></script>
+<script src="./content/m7-cicd-tasks.js"></script>
+<script src="./content/m7-cicd-topics.js"></script>
+<script src="./content/m8-perf-tasks.js"></script>
+<script src="./content/m8-perf-topics.js"></script>
+<script src="./content/m9-sec-tasks-deep.js"></script>
+<script src="./content/m9-sec-tasks-method.js"></script>
+<script src="./content/m9-sec-tasks.js"></script>
+<script src="./content/m9-sec-topics-access.js"></script>
+<script src="./content/m9-sec-topics-advanced.js"></script>
+<script src="./content/m9-sec-topics-api.js"></script>
+<script src="./content/m9-sec-topics-infra.js"></script>
+<script src="./content/m9-sec-topics-inject.js"></script>
+<script src="./content/m9-sec-topics-method.js"></script>
+<script src="./content/m9-sec-topics-owasp.js"></script>
+<script src="./content/questions-m1-m16-m17.js"></script>
+<script src="./content/questions-m12-m13-m15.js"></script>
+<script src="./content/questions-m18.js"></script>
+<script src="./content/questions-m19-m20.js"></script>
+<script src="./content/questions-m2-m4-m5.js"></script>
+<script src="./content/questions-m3-m10-m11-m14.js"></script>
+<script src="./content/questions-m7-m8.js"></script>
+<script src="./content/questions-m9-deep.js"></script>
+<script src="./content/questions.js"></script>
+<!-- CONTENT:END -->
+<script src="./src/pages/dashboard.js"></script>
+<script src="./src/pages/module.js"></script>
+<script src="./src/pages/track.js"></script>
+<script src="./src/pages/topic.js"></script>
+<script src="./src/pages/practice.js"></script>
+<script src="./src/pages/interview.js"></script>
+<script src="./src/pages/glossary.js"></script>
+<script src="./src/pages/search.js"></script>
+<script src="./src/app.js"></script>
+<script>
+  if (location.protocol.startsWith('http') && 'serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>
