@@ -8,6 +8,12 @@
 
   function inline(s) {
     let out = esc(s);
+    out = out.replace(/\[\[(m\d+(?:-[tp]\d+)?)\]\]/g, (_, id) => {
+      const g = window.QA && window.QA.get;
+      if (/^m\d+$/.test(id)) return '<a href="#/module/' + id + '">M' + id.slice(1) + '</a>';
+      if (/-t\d+$/.test(id)) { const t = g && g.topic(id); return '<a href="#/topic/' + id + '">' + esc(t ? t.title : id) + '</a>'; }
+      const k = g && g.task(id); return '<a href="#/task/' + id + '">' + esc(k ? k.title : id) + '</a>';
+    });
     out = out.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     out = out.replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>');

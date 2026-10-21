@@ -74,15 +74,6 @@ for (const m of data.modules) {
   if (tn === 0) P(`module ${m.id}: нет тем`);
 }
 
-// --- поиск [[wikilinks]] и осиротевших ссылок в тексте (инфо) ---
-const wiki = [];
-const textFields = ['theory','answer','mistake','checklist','sources','statement','solution','discussion','intro','summary'];
-for (const coll of [data.modules, data.topics, data.tasks]) {
-  for (const x of coll) for (const f of textFields) {
-    if (typeof x[f] === 'string' && /\[\[[^\]]+\]\]/.test(x[f])) wiki.push(`${x.id||x.code}.${f}`);
-  }
-}
-if (wiki.length) P('WIKILINKS (md.js не рендерит [[...]]): ' + wiki.join(', '));
 
 console.log('=== ИТОГО ===');
 console.log('модулей', data.modules.length, 'тем', data.topics.length, 'задач', data.tasks.length, 'вопросов', data.questions.length, 'терминов', data.glossary.length);
