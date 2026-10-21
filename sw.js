@@ -1,5 +1,5 @@
 /* QA-тренажёр service worker: офлайн через runtime-кэш. */
-const CACHE = 'qa-senior-v1';
+const CACHE = 'qa-senior-v2';
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
 self.addEventListener('fetch', (event) => {
@@ -15,13 +15,13 @@ self.addEventListener('fetch', (event) => {
     if (cached) {
       // фоново обновим, если онлайн
       event.waitUntil((async () => {
-        try { const fresh = await fetch(req); if (fresh && fresh.ok) await cache.put(req, fresh.clone()); } catch (e) {}
+        try { const fresh = await fetch(req); if (fresh && fresh.ok && !fresh.redirected) await cache.put(req, fresh.clone()); } catch (e) {}
       })());
       return cached;
     }
     try {
       const resp = await fetch(req);
-      if (resp && (resp.ok || resp.type === 'opaque')) await cache.put(req, resp.clone());
+      if (resp && (resp.ok || resp.type === 'opaque') && !resp.redirected) await cache.put(req, resp.clone());
       return resp;
     } catch (e) {
       // офлайн и нет в кэше: для навигации вернём корневой index.html из кэша
