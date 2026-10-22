@@ -1,0 +1,1097 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Тренажёр команд Git</title>
+<style>
+  :root {
+    --bg: #eef2f0;
+    --surface: #ffffff;
+    --surface-2: #e6ede8;
+    --surface-2-line: #d7e0da;
+    --border: #d1dbd5;
+    --text: #172420;
+    --text-dim: #5d6d65;
+    --text-faint: #93a49b;
+    --accent: #97591a;
+    --accent-strong: #7c4a15;
+    --accent-soft: rgba(151, 89, 26, 0.12);
+    --accent-solid: #96591a;
+    --accent-solid-hover: #7c4a15;
+    --success-solid: #167a68;
+    --success-solid-hover: #125f52;
+    --teal: #167a68;
+    --teal-soft: rgba(22, 122, 104, 0.12);
+    --rose: #ae3a4a;
+    --rose-soft: rgba(174, 58, 74, 0.1);
+    --violet: #5b53b0;
+    --violet-soft: rgba(91, 83, 176, 0.1);
+    --shadow: 0 1px 2px rgba(20, 30, 25, 0.04), 0 12px 28px -16px rgba(20, 30, 25, 0.28);
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10141a;
+      --surface: #171d25;
+      --surface-2: #1c232c;
+      --surface-2-line: #2a323d;
+      --border: #2a323c;
+      --text: #e8edf1;
+      --text-dim: #96a1ac;
+      --text-faint: #5c6773;
+      --accent: #dd9752;
+      --accent-strong: #f0ac68;
+      --accent-soft: rgba(221, 151, 82, 0.14);
+      --teal: #57c3a8;
+      --teal-soft: rgba(87, 195, 168, 0.14);
+      --rose: #e08494;
+      --rose-soft: rgba(224, 132, 148, 0.13);
+      --violet: #a49bf2;
+      --violet-soft: rgba(164, 155, 242, 0.14);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 16px 32px -16px rgba(0, 0, 0, 0.55);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #10141a;
+    --surface: #171d25;
+    --surface-2: #1c232c;
+    --surface-2-line: #2a323d;
+    --border: #2a323c;
+    --text: #e8edf1;
+    --text-dim: #96a1ac;
+    --text-faint: #5c6773;
+    --accent: #dd9752;
+    --accent-strong: #f0ac68;
+    --accent-soft: rgba(221, 151, 82, 0.14);
+    --teal: #57c3a8;
+    --teal-soft: rgba(87, 195, 168, 0.14);
+    --rose: #e08494;
+    --rose-soft: rgba(224, 132, 148, 0.13);
+    --violet: #a49bf2;
+    --violet-soft: rgba(164, 155, 242, 0.14);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 16px 32px -16px rgba(0, 0, 0, 0.55);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 40px 18px 60px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .app-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .app-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .app-header .subtitle {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .stats {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    display: flex;
+    gap: 10px;
+  }
+
+  .stats b { color: var(--text); font-weight: 600; }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-chip {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .filter-chip:hover { color: var(--text); border-color: var(--accent); }
+  .filter-chip.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .graph-shell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px 10px;
+    box-shadow: var(--shadow);
+  }
+
+  .graph-scroll {
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+
+  .graph-row {
+    display: flex;
+    align-items: center;
+    min-width: max-content;
+  }
+
+  .node {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+
+  .node .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    flex: 0 0 auto;
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .node .line {
+    width: 16px;
+    height: 2px;
+    background: var(--border);
+    flex: 0 0 auto;
+  }
+
+  .node:last-child .line { display: none; }
+
+  .node.correct .dot { background: var(--teal); border-color: var(--teal); }
+  .node.correct .line { background: var(--teal); opacity: 0.55; }
+  .node.skipped .dot { background: var(--rose); border-color: var(--rose); }
+  .node.skipped .line { background: var(--rose); opacity: 0.45; }
+  .node.current .dot {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+
+  .graph-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-top: 8px;
+    font-family: var(--font-mono);
+  }
+
+  .graph-legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .legend-dot.current { background: var(--accent); }
+  .legend-dot.correct { background: var(--teal); }
+  .legend-dot.skipped { background: var(--rose); }
+  .legend-dot.pending { background: var(--surface); border: 2px solid var(--border); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 26px 26px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    letter-spacing: 0.02em;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .eyebrow .cat::before { content: "# "; }
+
+  .level-tag {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-2-line);
+    color: var(--text-dim);
+  }
+  .level-tag.basic { color: var(--teal); border-color: var(--teal); }
+  .level-tag.mid { color: var(--accent); border-color: var(--accent); }
+  .level-tag.adv { color: var(--violet); border-color: var(--violet); }
+
+  .situation {
+    font-size: 1.12rem;
+    line-height: 1.55;
+    color: var(--text);
+    text-wrap: balance;
+    max-width: 62ch;
+  }
+
+  .prompt-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--surface-2-line);
+    border-radius: var(--radius-md);
+    padding: 4px 4px 4px 14px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .prompt-row:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .prompt-row.is-wrong {
+    border-color: var(--rose);
+    animation: shake 0.32s ease;
+  }
+
+  .prompt-row.is-typo { border-color: var(--accent); }
+  .prompt-row.is-correct { border-color: var(--teal); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .prompt-row.is-wrong { animation: none; }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+  }
+
+  .prompt-glyph {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-weight: 600;
+    align-self: center;
+    user-select: none;
+  }
+
+  #cmd-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-family: var(--font-mono);
+    font-size: 0.98rem;
+    color: var(--text);
+    padding: 10px 4px;
+  }
+
+  #cmd-input::placeholder { color: var(--text-faint); }
+  #cmd-input:disabled { color: var(--text-dim); }
+
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  button {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    padding: 10px 18px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  }
+
+  button:active { transform: translateY(1px); }
+
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .btn-primary {
+    background: var(--accent-solid);
+    color: #ffffff;
+    border-color: var(--accent-solid);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-solid-hover); border-color: var(--accent-solid-hover); }
+
+  .btn-success {
+    background: var(--success-solid);
+    color: #ffffff;
+    border-color: var(--success-solid);
+  }
+  .btn-success:hover:not(:disabled) { background: var(--success-solid-hover); border-color: var(--success-solid-hover); }
+
+  .btn-ghost-violet {
+    background: transparent;
+    color: var(--violet);
+    border-color: var(--violet);
+  }
+  .btn-ghost-violet:hover:not(:disabled) { background: var(--violet-soft); }
+
+  .btn-ghost-rose {
+    background: transparent;
+    color: var(--rose);
+    border-color: var(--rose);
+  }
+  .btn-ghost-rose:hover:not(:disabled) { background: var(--rose-soft); }
+
+  .feedback {
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .feedback.show { display: flex; }
+
+  .feedback-icon {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+  }
+
+  .feedback.state-wrong { background: var(--rose-soft); color: var(--rose); }
+  .feedback.state-hint { background: var(--violet-soft); color: var(--violet); }
+  .feedback.state-correct { background: var(--teal-soft); color: var(--teal); }
+  .feedback.state-reveal { background: var(--surface-2); color: var(--text-dim); border: 1px dashed var(--surface-2-line); }
+
+  .feedback code {
+    font-family: var(--font-mono);
+    background: rgba(0,0,0,0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  :root:not([data-theme="light"]) .feedback code { background: rgba(255,255,255,0.08); }
+  :root[data-theme="dark"] .feedback code { background: rgba(255,255,255,0.08); }
+
+  .explain {
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: var(--text-dim);
+    border-left: 2px solid var(--surface-2-line);
+    padding: 2px 0 2px 12px;
+    margin-top: 2px;
+  }
+  .explain code {
+    font-family: var(--font-mono);
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  .done-screen {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .done-screen.show { display: flex; }
+
+  .done-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--teal-soft);
+    color: var(--teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .done-title { font-size: 1.2rem; font-weight: 700; margin: 0; }
+
+  .done-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+
+  .done-stat {
+    background: var(--surface-2);
+    border: 1px solid var(--surface-2-line);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+
+  .done-stat .num {
+    font-family: var(--font-mono);
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: block;
+  }
+  .done-stat .lbl { font-size: 0.76rem; color: var(--text-dim); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translate(-50%, 12px);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    max-width: 90vw;
+    z-index: 20;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast, .node .dot { transition: none; }
+  }
+
+  .toast-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    flex: 0 0 auto;
+  }
+
+  .app-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    flex-wrap: wrap;
+  }
+
+  .reset-link {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .reset-link:hover { color: var(--text); }
+
+  @media (max-width: 480px) {
+    .card { padding: 20px 18px 20px; }
+    .situation { font-size: 1.02rem; }
+  }
+</style>
+
+<div class="app">
+  <header class="app-header">
+    <div>
+      <h1>Тренажёр команд Git</h1>
+      <span class="subtitle">От базовых команд до rebase, reflog и bisect. Опишите ситуацию словами — вы вводите нужную команду.</span>
+    </div>
+    <div class="stats" id="stats" aria-live="polite"></div>
+  </header>
+
+  <div class="toolbar" id="toolbar"></div>
+
+  <div class="graph-shell">
+    <div class="graph-scroll" id="graph-scroll">
+      <div class="graph-row" id="graph-row"></div>
+    </div>
+    <div class="graph-legend">
+      <span><span class="legend-dot current"></span>текущая</span>
+      <span><span class="legend-dot correct"></span>решено</span>
+      <span><span class="legend-dot skipped"></span>пропущено</span>
+      <span><span class="legend-dot pending"></span>впереди</span>
+    </div>
+  </div>
+
+  <main class="card" id="card">
+    <div id="question-view">
+      <div class="eyebrow">
+        <span class="cat" id="category"></span>
+        <span class="level-tag" id="level"></span>
+      </div>
+      <p class="situation" id="situation" style="margin: 8px 0 18px;"></p>
+
+      <div class="prompt-row" id="prompt-row">
+        <span class="prompt-glyph">$</span>
+        <input id="cmd-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+               placeholder="введите команду git..." aria-label="Введите команду git" />
+      </div>
+
+      <div class="btn-row" style="margin-top: 14px;">
+        <button class="btn-primary" id="btn-check">Проверить</button>
+        <button class="btn-ghost-violet" id="btn-hint" disabled>Подсказка</button>
+        <button class="btn-success" id="btn-next" style="display:none;">Далее →</button>
+        <button class="btn-ghost-rose" id="btn-skip" style="display:none;">Пропустить</button>
+      </div>
+
+      <div class="feedback" id="feedback" style="margin-top: 16px;" aria-live="polite"></div>
+    </div>
+
+    <div class="done-screen" id="done-screen">
+      <div class="done-badge">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2 class="done-title">Все ситуации пройдены</h2>
+      <div class="done-stats" id="done-stats"></div>
+      <button class="btn-primary" id="btn-restart">Пройти заново</button>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <span>Верно засчитывается точная команда; при опечатке — подсказка проверить написание. Прогресс хранится в этом браузере.</span>
+    <button class="reset-link" id="reset-link">Сбросить прогресс</button>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status">
+  <span class="toast-dot"></span>
+  <span id="toast-text"></span>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Уровни: 1 — базовый, 2 — средний, 3 — продвинутый.
+  const ALL = [
+    // ---------- Настройка ----------
+    { cat: "Настройка", lvl: 1, situation: `Настройте своё имя пользователя для Git глобально (для всех репозиториев) как "Denis".`, answers: [`git config --global user.name "Denis"`, `git config --global user.name 'Denis'`], hint: "config --global и ключ user.name.", explain: "Имя и email попадают в каждый коммит как авторство." },
+    { cat: "Настройка", lvl: 1, situation: `Задайте глобальный email для коммитов — denis@mail.com.`, answers: [`git config --global user.email "denis@mail.com"`, `git config --global user.email 'denis@mail.com'`, `git config --global user.email denis@mail.com`], hint: "Ключ user.email.", explain: "Без кавычек тоже работает — в адресе нет пробелов." },
+    { cat: "Настройка", lvl: 2, situation: `Сделайте короткий псевдоним: чтобы "git co" работал как "git checkout" (глобально).`, answers: [`git config --global alias.co checkout`], hint: "config --global alias.<имя> <команда>.", explain: "Алиасы экономят время на частых командах." },
+    { cat: "Настройка", lvl: 1, situation: "Посмотрите все текущие настройки Git одним списком.", answers: ["git config --list", "git config -l"], hint: "У config есть флаг для вывода всего списка.", explain: "Показывает слитые настройки system/global/local." },
+
+    // ---------- Инициализация и клонирование ----------
+    { cat: "Старт репозитория", lvl: 1, situation: "Вы начинаете новый проект в пустой папке и хотите создать в ней git-репозиторий.", answers: ["git init"], hint: "init создаёт скрытую папку .git в текущей директории.", explain: "После init папка становится репозиторием, но коммитов ещё нет." },
+    { cat: "Старт репозитория", lvl: 1, situation: "Склонируйте проект с адреса https://github.com/denis/shop.git себе на компьютер.", answers: ["git clone https://github.com/denis/shop.git"], hint: "git clone <адрес>.", explain: "Git сам создаст папку shop и настроит origin." },
+    { cat: "Старт репозитория", lvl: 2, situation: "Нужно склонировать только последнюю версию без всей истории (быстро, для CI) с https://github.com/denis/shop.git.", answers: ["git clone --depth 1 https://github.com/denis/shop.git", "git clone --depth=1 https://github.com/denis/shop.git"], hint: "Флаг --depth ограничивает глубину истории.", explain: "Shallow-клон резко уменьшает объём скачивания." },
+    { cat: "Старт репозитория", lvl: 2, situation: "Склонируйте сразу конкретную ветку develop из https://github.com/denis/shop.git.", answers: ["git clone -b develop https://github.com/denis/shop.git", "git clone --branch develop https://github.com/denis/shop.git"], hint: "Флаг -b / --branch задаёт ветку при клоне.", explain: "Иначе склонируется ветка по умолчанию (обычно main)." },
+
+    // ---------- Статус, индекс, diff ----------
+    { cat: "Статус и индекс", lvl: 1, situation: "Посмотрите, какие файлы изменены, а какие ещё не отслеживаются.", answers: ["git status"], hint: "Самая частая команда, без аргументов.", explain: "Показывает staged / unstaged / untracked." },
+    { cat: "Статус и индекс", lvl: 2, situation: "Тот же статус, но в компактном виде — по одной строке на файл.", answers: ["git status -s", "git status --short"], hint: "Нужен флаг короткого формата.", explain: "Колонки XY: левая — индекс, правая — рабочая директория." },
+    { cat: "Статус и индекс", lvl: 1, situation: "Вы отредактировали styles.css и хотите добавить именно его в индекс перед коммитом.", answers: ["git add styles.css"], hint: "git add <файл>.", explain: "Файл переходит в staging — область будущего коммита." },
+    { cat: "Статус и индекс", lvl: 1, situation: "Добавьте в индекс сразу все изменения в проекте.", answers: ["git add .", "git add -A", "git add --all"], hint: "Точка — всё в текущей папке и ниже; есть и -A.", explain: "git add -A захватывает удаления по всему репозиторию, точка — от текущей папки." },
+    { cat: "Статус и индекс", lvl: 3, situation: "В файле много правок, но закоммитить нужно только часть — выберите изменения по кускам интерактивно.", answers: ["git add -p", "git add --patch"], hint: "Флаг -p / --patch запускает выбор по хунками.", explain: "Git спросит по каждому куску: y/n/s — можно собрать аккуратный коммит." },
+    { cat: "Статус и индекс", lvl: 1, situation: "Посмотрите, что изменилось в рабочей директории по сравнению с последним коммитом (ещё не добавлено в индекс).", answers: ["git diff"], hint: "Без флагов diff сравнивает рабочую директорию с индексом.", explain: "Staged-правки сюда не попадают." },
+    { cat: "Статус и индекс", lvl: 2, situation: "Файлы уже в индексе (staged) — посмотрите, что именно попадёт в следующий коммит.", answers: ["git diff --staged", "git diff --cached"], hint: "Нужен флаг, заглядывающий в индекс.", explain: "--staged и --cached — синонимы." },
+    { cat: "Статус и индекс", lvl: 2, situation: "Покажите статистику изменений (сколько файлов и строк) без самих диффов.", answers: ["git diff --stat"], hint: "Флаг --stat выводит сводку.", explain: "Удобно оценить масштаб правок перед коммитом." },
+
+    // ---------- Коммиты ----------
+    { cat: "Коммиты", lvl: 1, situation: `Изменения в индексе. Сохраните их коммитом с сообщением "Add navigation menu".`, answers: [`git commit -m "Add navigation menu"`, `git commit -m 'Add navigation menu'`], hint: `git commit -m "сообщение".`, explain: "Флаг -m задаёт сообщение прямо в команде." },
+    { cat: "Коммиты", lvl: 2, situation: `Все изменённые файлы уже отслеживаются. Закоммитьте их одной командой, не вызывая git add, с сообщением "Fix typo".`, answers: [`git commit -am "Fix typo"`, `git commit -a -m "Fix typo"`, `git commit -am 'Fix typo'`], hint: "Флаг -a сам добавляет отслеживаемые файлы.", explain: "На новые (untracked) файлы -a не действует." },
+    { cat: "Коммиты", lvl: 2, situation: `Вы ошиблись в тексте последнего коммита (он ещё не запушен). Исправьте сообщение на "Fix header layout".`, answers: [`git commit --amend -m "Fix header layout"`, `git commit --amend -m 'Fix header layout'`], hint: "Флаг --amend переписывает последний коммит.", explain: "--amend меняет хэш коммита — не делайте так с уже запушенными." },
+    { cat: "Коммиты", lvl: 2, situation: "Вы забыли добавить файл license.txt в последний коммит. Вы уже сделали git add license.txt — допишите его в тот же коммит, не меняя сообщение.", answers: ["git commit --amend --no-edit"], hint: "--amend плюс флаг, который не трогает сообщение.", explain: "--no-edit оставляет прежний текст коммита." },
+    { cat: "Коммиты", lvl: 3, situation: `Нужно перезапустить CI без изменений в коде — сделайте пустой коммит с сообщением "ci: rerun".`, answers: [`git commit --allow-empty -m "ci: rerun"`, `git commit --allow-empty -m 'ci: rerun'`], hint: "Флаг --allow-empty разрешает коммит без изменений.", explain: "Частый приём, чтобы дёрнуть пайплайн." },
+
+    // ---------- История и поиск ----------
+    { cat: "История", lvl: 1, situation: "Посмотрите историю коммитов текущей ветки.", answers: ["git log"], hint: "Без аргументов — автор, дата, хэш, сообщение.", explain: "Выход — по q." },
+    { cat: "История", lvl: 1, situation: "История длинная — покажите её компактно, по одному коммиту на строку.", answers: ["git log --oneline"], hint: "Флаг --oneline.", explain: "Короткий хэш + заголовок коммита." },
+    { cat: "История", lvl: 2, situation: "Покажите историю всех веток наглядным графом, по строке на коммит.", answers: ["git log --oneline --graph --all", "git log --graph --oneline --all", "git log --all --graph --oneline"], hint: "Сложите три флага: --oneline, --graph, --all.", explain: "Видно ветвления и слияния в ASCII-графе." },
+    { cat: "История", lvl: 2, situation: "Покажите только последние 3 коммита.", answers: ["git log -3", "git log -n 3"], hint: "Число после -n (или просто -3).", explain: "Ограничивает вывод." },
+    { cat: "История", lvl: 2, situation: `Найдите коммиты автора "Denis".`, answers: [`git log --author="Denis"`, `git log --author='Denis'`, `git log --author=Denis`], hint: "Флаг --author.", explain: "Фильтрует по полю автора." },
+    { cat: "История", lvl: 2, situation: `Найдите коммиты, в сообщении которых встречается "fix".`, answers: [`git log --grep="fix"`, `git log --grep='fix'`, `git log --grep=fix`], hint: "Флаг --grep ищет по тексту сообщений.", explain: "Это не поиск по коду — только по сообщениям." },
+    { cat: "История", lvl: 3, situation: `Найдите, в каком коммите в код добавили/убрали строку "API_KEY" (поиск по изменению кода).`, answers: [`git log -S "API_KEY"`, `git log -S"API_KEY"`, `git log -S 'API_KEY'`, `git log -S'API_KEY'`], hint: `"Кирка" — флаг -S "строка".`, explain: "Pickaxe ищет коммиты, менявшие число вхождений строки." },
+    { cat: "История", lvl: 2, situation: "Узнайте, кто и в каком коммите последним менял каждую строку файла config.js.", answers: ["git blame config.js"], hint: "Построчное авторство.", explain: "Помогает найти, когда появилась строка." },
+    { cat: "История", lvl: 1, situation: "Покажите подробности коммита 7a3f21c: сообщение, автора и изменения.", answers: ["git show 7a3f21c"], hint: "git show <хэш>.", explain: "Без аргумента показывает последний коммит." },
+    { cat: "История", lvl: 3, situation: "Покажите содержимое файла README.md таким, каким оно было в коммите 7a3f21c.", answers: ["git show 7a3f21c:README.md"], hint: "Синтаксис <коммит>:<путь>.", explain: "Удобно посмотреть старую версию, ничего не переключая." },
+    { cat: "История", lvl: 3, situation: "Выведите сводку: сколько коммитов сделал каждый автор, отсортировано по количеству.", answers: ["git shortlog -sn", "git shortlog -s -n", "git shortlog -ns"], hint: "shortlog с флагами -s (summary) и -n (sort by number).", explain: "Быстрый обзор вклада участников." },
+
+    // ---------- Ветки ----------
+    { cat: "Ветки", lvl: 1, situation: "Посмотрите список локальных веток.", answers: ["git branch"], hint: "Без аргументов — просто список.", explain: "Текущая ветка помечена звёздочкой." },
+    { cat: "Ветки", lvl: 2, situation: "Покажите все ветки, включая удалённые.", answers: ["git branch -a", "git branch --all"], hint: "Флаг -a / --all.", explain: "Удалённые показываются как remotes/origin/..." },
+    { cat: "Ветки", lvl: 2, situation: "Покажите, какие локальные ветки уже слиты в текущую (их можно удалять).", answers: ["git branch --merged"], hint: "Флаг --merged.", explain: "Противоположность — --no-merged." },
+    { cat: "Ветки", lvl: 1, situation: "Создайте ветку payment-fix, но останьтесь в текущей.", answers: ["git branch payment-fix"], hint: "git branch создаёт, но не переключает.", explain: "Для переключения нужна отдельная команда." },
+    { cat: "Ветки", lvl: 1, situation: "Переключитесь на существующую ветку payment-fix.", answers: ["git checkout payment-fix", "git switch payment-fix"], hint: "checkout или более новая switch.", explain: "switch специально для веток, checkout — универсальнее." },
+    { cat: "Ветки", lvl: 1, situation: "Создайте ветку payment-fix и сразу переключитесь на неё одной командой.", answers: ["git checkout -b payment-fix", "git switch -c payment-fix"], hint: "Флаг -b у checkout или -c у switch.", explain: "Ветка создаётся от текущего коммита." },
+    { cat: "Ветки", lvl: 2, situation: "Создайте ветку hotfix от конкретного коммита 7a3f21c и переключитесь на неё.", answers: ["git checkout -b hotfix 7a3f21c", "git switch -c hotfix 7a3f21c"], hint: "После имени ветки укажите стартовую точку.", explain: "Стартовой точкой может быть хэш, тег или другая ветка." },
+    { cat: "Ветки", lvl: 2, situation: "Переименуйте текущую ветку в main.", answers: ["git branch -m main"], hint: "Флаг -m (move) переименовывает.", explain: "Частый приём при переходе master → main." },
+    { cat: "Ветки", lvl: 1, situation: "Ветка payment-fix уже слита и не нужна — удалите её локально.", answers: ["git branch -d payment-fix"], hint: "Строчная -d удаляет только слитые ветки.", explain: "Защита от потери несохранённой работы." },
+    { cat: "Ветки", lvl: 2, situation: "Ветка experiment не слита, но точно не нужна — удалите её принудительно.", answers: ["git branch -D experiment", "git branch --delete --force experiment"], hint: "Заглавная -D удаляет без проверки слияния.", explain: "-D = --delete --force." },
+
+    // ---------- Удалённые репозитории ----------
+    { cat: "Удалёнки", lvl: 1, situation: "У репозитория нет привязки к удалённому. Привяжите origin к https://github.com/denis/shop.git.", answers: ["git remote add origin https://github.com/denis/shop.git"], hint: "git remote add <имя> <адрес>.", explain: "origin — общепринятое имя основного удалённого репозитория." },
+    { cat: "Удалёнки", lvl: 1, situation: "Посмотрите список привязанных удалёнок с их адресами.", answers: ["git remote -v"], hint: "Флаг -v (verbose) показывает URL.", explain: "Видно отдельно fetch и push адреса." },
+    { cat: "Удалёнки", lvl: 2, situation: "Поменяйте адрес origin на git@github.com:denis/shop.git (перешли на SSH).", answers: ["git remote set-url origin git@github.com:denis/shop.git"], hint: "git remote set-url <имя> <новый адрес>.", explain: "Частый шаг при переходе с HTTPS на SSH." },
+    { cat: "Удалёнки", lvl: 1, situation: "Отправьте коммиты текущей ветки main в привязанный origin.", answers: ["git push origin main", "git push"], hint: "git push [<remote> <ветка>].", explain: "Если upstream настроен, хватит просто git push." },
+    { cat: "Удалёнки", lvl: 2, situation: "Впервые публикуете новую ветку payment-fix и хотите, чтобы Git запомнил связку для будущих push/pull.", answers: ["git push -u origin payment-fix", "git push --set-upstream origin payment-fix"], hint: "Флаг -u / --set-upstream.", explain: "После этого в ветке работают короткие git push и git pull." },
+    { cat: "Удалёнки", lvl: 1, situation: "Скачайте изменения из origin, но пока не сливайте их с текущей веткой.", answers: ["git fetch", "git fetch origin"], hint: "fetch не трогает рабочую директорию.", explain: "Обновляет только remote-tracking ветки." },
+    { cat: "Удалёнки", lvl: 2, situation: "Скачайте изменения и заодно удалите ссылки на ветки, которых на origin уже нет.", answers: ["git fetch --prune", "git fetch -p", "git fetch --prune origin", "git fetch origin --prune"], hint: "Флаг --prune / -p чистит устаревшие ветки.", explain: "Иначе удалённые на сервере ветки продолжают висеть локально." },
+    { cat: "Удалёнки", lvl: 1, situation: "Скачайте изменения из origin и сразу слейте их с текущей веткой.", answers: ["git pull", "git pull origin"], hint: "pull = fetch + merge.", explain: "С настройкой pull.rebase=true — это fetch + rebase." },
+    { cat: "Удалёнки", lvl: 2, situation: "Отправьте на origin все локальные теги.", answers: ["git push --tags", "git push origin --tags"], hint: "Флаг --tags.", explain: "Обычный push теги не отправляет." },
+    { cat: "Удалёнки", lvl: 3, situation: "Удалите ветку feature на удалённом origin (локальную не трогаем).", answers: ["git push origin --delete feature", "git push origin :feature"], hint: "--delete или синтаксис с двоеточием.", explain: "git push origin :feature — «запушить пустоту» в feature." },
+
+    // ---------- Слияние, ребейз, конфликты ----------
+    { cat: "Слияние и rebase", lvl: 1, situation: "Вы в ветке main и хотите влить в неё изменения из payment-fix.", answers: ["git merge payment-fix"], hint: "merge вызывается из ветки-приёмника с именем источника.", explain: "Создаёт merge-коммит (или fast-forward)." },
+    { cat: "Слияние и rebase", lvl: 2, situation: "Влейте feature в main так, чтобы обязательно остался merge-коммит, даже если возможен fast-forward.", answers: ["git merge --no-ff feature"], hint: "Флаг --no-ff запрещает перемотку.", explain: "Сохраняет в истории факт существования ветки." },
+    { cat: "Слияние и rebase", lvl: 2, situation: "Слияние пошло с конфликтами, и вы хотите всё отменить и вернуться как было.", answers: ["git merge --abort"], hint: "Флаг --abort у merge.", explain: "Возвращает рабочую директорию к состоянию до merge." },
+    { cat: "Слияние и rebase", lvl: 2, situation: "Перебазируйте текущую ветку поверх main, чтобы история стала линейной.", answers: ["git rebase main"], hint: "git rebase <основа>.", explain: "Переносит ваши коммиты на свежую вершину main." },
+    { cat: "Слияние и rebase", lvl: 3, situation: "Во время rebase возник конфликт. Вы поправили файлы и сделали git add. Продолжите rebase.", answers: ["git rebase --continue"], hint: "Флаг --continue.", explain: "Git применит следующий коммит из очереди." },
+    { cat: "Слияние и rebase", lvl: 2, situation: "Rebase пошёл не так — прекратите его и верните ветку в исходное состояние.", answers: ["git rebase --abort"], hint: "Флаг --abort у rebase.", explain: "Откатывает к состоянию до начала rebase." },
+    { cat: "Слияние и rebase", lvl: 3, situation: "Перепишите последние 3 коммита интерактивно (объединить/переименовать).", answers: ["git rebase -i HEAD~3", "git rebase --interactive HEAD~3"], hint: "Флаг -i и диапазон HEAD~3.", explain: "Откроется редактор со списком: pick/squash/reword/drop." },
+    { cat: "Слияние и rebase", lvl: 3, situation: "Возник конфликт слияния в app.js. Вы вручную отредактировали файл и готовы отметить его как разрешённый.", answers: ["git add app.js"], hint: "Разрешённый конфликт помечается обычным add.", explain: "После add продолжают merge-коммитом или --continue." },
+    { cat: "Слияние и rebase", lvl: 2, situation: "Перенесите один конкретный коммит 7a3f21c из другой ветки в текущую.", answers: ["git cherry-pick 7a3f21c"], hint: "git cherry-pick <хэш>.", explain: "Создаёт копию коммита поверх текущей ветки." },
+    { cat: "Слияние и rebase", lvl: 3, situation: "Cherry-pick остановился на конфликте. Вы его разрешили и сделали git add. Продолжите операцию.", answers: ["git cherry-pick --continue"], hint: "Флаг --continue.", explain: "Есть и --abort, чтобы отменить." },
+
+    // ---------- Отмена и восстановление ----------
+    { cat: "Отмена", lvl: 1, situation: "Вы изменили report.txt, но ещё не добавляли в индекс. Отмените правки, вернув файл к последнему коммиту.", answers: ["git restore report.txt", "git checkout -- report.txt"], hint: "Новый способ — restore, старый — checkout --.", explain: "Правки в файле теряются безвозвратно." },
+    { cat: "Отмена", lvl: 2, situation: "Файл report.txt уже в индексе (staged). Уберите его из индекса, сохранив сами изменения в файле.", answers: ["git restore --staged report.txt", "git reset report.txt", "git reset HEAD report.txt"], hint: "restore --staged или reset <файл>.", explain: "Разиндексирование не трогает содержимое файла." },
+    { cat: "Отмена", lvl: 2, situation: "Последний коммит лишний. Отмените его, оставив изменения в индексе (staged).", answers: ["git reset --soft HEAD~1"], hint: "reset --soft двигает HEAD, не трогая индекс и файлы.", explain: "Удобно, чтобы пересобрать коммит заново." },
+    { cat: "Отмена", lvl: 2, situation: "Отмените последний коммит, оставив изменения как незакоммиченные (вне индекса).", answers: ["git reset HEAD~1", "git reset --mixed HEAD~1"], hint: "reset без флага = --mixed.", explain: "Файлы остаются, но выходят из индекса." },
+    { cat: "Отмена", lvl: 2, situation: "Последний коммит полностью ошибочный — удалите его вместе с изменениями безвозвратно.", answers: ["git reset --hard HEAD~1"], hint: "--hard стирает и рабочую директорию.", explain: "Самый опасный reset — изменения не вернуть (почти)." },
+    { cat: "Отмена", lvl: 2, situation: "Коммит a1b2c3d уже в общей удалёнке, историю менять нельзя. Отмените его эффект новым коммитом.", answers: ["git revert a1b2c3d"], hint: "revert добавляет обратный коммит, не переписывая историю.", explain: "Безопасно для опубликованных коммитов." },
+    { cat: "Отмена", lvl: 3, situation: "Верните один файл config.js к версии из коммита 7a3f21c (остальное не трогаем).", answers: ["git checkout 7a3f21c -- config.js", "git restore --source 7a3f21c config.js", "git restore --source=7a3f21c config.js"], hint: "checkout <коммит> -- <файл> или restore --source.", explain: "Файл заменится, изменение попадёт в рабочую директорию." },
+    { cat: "Отмена", lvl: 3, situation: "Вы сделали reset --hard и потеряли коммит. Найдите, куда раньше указывал HEAD, чтобы восстановить его.", answers: ["git reflog"], hint: "Журнал перемещений HEAD.", explain: "По хэшу из reflog можно вернуть «потерянный» коммит через reset/checkout." },
+    { cat: "Отмена", lvl: 3, situation: "Локальная main разошлась с сервером из-за мусорных коммитов. Приведите её точно к состоянию origin/main, выбросив локальные расхождения.", answers: ["git reset --hard origin/main"], hint: "reset --hard на remote-tracking ветку.", explain: "Перед этим обычно делают git fetch." },
+
+    // ---------- Stash ----------
+    { cat: "Stash", lvl: 1, situation: "Вы на середине правок, но нужно срочно переключиться. Временно спрячьте незакоммиченные изменения.", answers: ["git stash"], hint: "stash откладывает изменения в стек.", explain: "Рабочая директория становится чистой." },
+    { cat: "Stash", lvl: 2, situation: `Спрячьте изменения с понятной подписью "wip: header".`, answers: [`git stash push -m "wip: header"`, `git stash push -m 'wip: header'`, `git stash save "wip: header"`, `git stash save 'wip: header'`], hint: "stash push -m \"подпись\" (или устаревшее save).", explain: "Подпись помогает найти нужный стэш в списке." },
+    { cat: "Stash", lvl: 2, situation: "Спрячьте изменения ВМЕСТЕ с новыми (неотслеживаемыми) файлами.", answers: ["git stash -u", "git stash --include-untracked", "git stash push -u", "git stash push --include-untracked"], hint: "Флаг -u / --include-untracked.", explain: "Обычный stash untracked-файлы игнорирует." },
+    { cat: "Stash", lvl: 1, situation: "Посмотрите список всех отложенных стэшей.", answers: ["git stash list"], hint: "stash list.", explain: "Записи вида stash@{0}, stash@{1}..." },
+    { cat: "Stash", lvl: 1, situation: "Верните последний отложенный стэш и уберите его из стека.", answers: ["git stash pop"], hint: "pop применяет и удаляет из стека.", explain: "Если нужно сохранить стэш — используют apply." },
+    { cat: "Stash", lvl: 2, situation: "Примените последний стэш, но оставьте его в списке (на случай повтора).", answers: ["git stash apply"], hint: "apply не удаляет стэш.", explain: "Отличие от pop именно в сохранении записи." },
+    { cat: "Stash", lvl: 2, situation: "Удалите последний стэш из стека, не применяя его.", answers: ["git stash drop"], hint: "drop удаляет запись.", explain: "git stash clear удалил бы вообще все." },
+
+    // ---------- Файлы, игнор, теги ----------
+    { cat: "Файлы и теги", lvl: 1, situation: "Файл old-logo.png больше не нужен — удалите его и из рабочей директории, и из индекса.", answers: ["git rm old-logo.png"], hint: "Обычный rm не сообщит Git — нужна git rm.", explain: "Удаление попадёт в следующий коммит." },
+    { cat: "Файлы и теги", lvl: 2, situation: "Файл config.local случайно отслеживается. Перестаньте его отслеживать, но оставьте на диске.", answers: ["git rm --cached config.local"], hint: "Флаг --cached убирает только из индекса.", explain: "Дальше его обычно добавляют в .gitignore." },
+    { cat: "Файлы и теги", lvl: 1, situation: "Переименуйте файл app.js в main.js средствами Git.", answers: ["git mv app.js main.js"], hint: "git mv <старое> <новое>.", explain: "Git отследит это как переименование." },
+    { cat: "Файлы и теги", lvl: 2, situation: "Удалите все неотслеживаемые файлы и папки из рабочей директории (мусор после сборки).", answers: ["git clean -fd", "git clean -df", "git clean -f -d"], hint: "clean с флагами -f (force) и -d (папки).", explain: "Опасно: удаляет то, что Git не хранит. Проверьте через git clean -n." },
+    { cat: "Файлы и теги", lvl: 1, situation: "Отметьте текущий коммит лёгким тегом v1.0.0.", answers: ["git tag v1.0.0"], hint: "git tag <имя>.", explain: "Лёгкий тег — просто указатель на коммит." },
+    { cat: "Файлы и теги", lvl: 2, situation: `Создайте аннотированный тег v1.0.0 с сообщением "release 1.0".`, answers: [`git tag -a v1.0.0 -m "release 1.0"`, `git tag -a v1.0.0 -m 'release 1.0'`], hint: "Флаг -a (annotated) и -m для сообщения.", explain: "Аннотированный тег хранит автора, дату и сообщение — его и используют для релизов." },
+    { cat: "Файлы и теги", lvl: 3, situation: "Опишите текущий коммит через ближайший тег (например, для версии в сборке).", answers: ["git describe --tags"], hint: "describe --tags.", explain: "Выдаёт что-то вроде v1.0.0-5-g7a3f21c." },
+
+    // ---------- Продвинутое ----------
+    { cat: "Продвинутое", lvl: 3, situation: "Вы переписали историю ветки через rebase и пушите заново. Сделайте это безопасно, не затирая чужие коммиты вслепую.", answers: ["git push --force-with-lease", "git push --force-with-lease origin", "git push origin --force-with-lease"], hint: "--force-with-lease вместо --force.", explain: "Откажет в push, если на сервере появились новые чужие коммиты." },
+    { cat: "Продвинутое", lvl: 3, situation: "Начните бинарный поиск коммита, который сломал тест.", answers: ["git bisect start"], hint: "bisect start — запуск поиска.", explain: "Дальше помечают good/bad, Git делит историю пополам." },
+    { cat: "Продвинутое", lvl: 3, situation: "В процессе bisect текущая версия содержит баг — пометьте её как плохую.", answers: ["git bisect bad"], hint: "bisect bad.", explain: "Git сузит диапазон поиска." },
+    { cat: "Продвинутое", lvl: 3, situation: "В процессе bisect пометьте заведомо рабочую версию — тег v1.0 — как хорошую.", answers: ["git bisect good v1.0"], hint: "bisect good <версия>.", explain: "После good/bad Git сам переключится на середину диапазона." },
+    { cat: "Продвинутое", lvl: 3, situation: "Нужно параллельно работать над hotfix, не трогая текущую ветку. Добавьте для ветки hotfix отдельное рабочее дерево в папку ../hotfix.", answers: ["git worktree add ../hotfix hotfix"], hint: "git worktree add <путь> <ветка>.", explain: "Один репозиторий — несколько рабочих директорий одновременно." },
+    { cat: "Продвинутое", lvl: 3, situation: "После клона проекта нужно подтянуть все вложенные сабмодули.", answers: ["git submodule update --init --recursive"], hint: "submodule update с --init --recursive.", explain: "--recursive важен для вложенных сабмодулей." },
+    { cat: "Продвинутое", lvl: 3, situation: "Нужно отменить merge-коммит m1m2m3 (вернуть состояние до слияния), сохранив как основную первую ветку.", answers: ["git revert -m 1 m1m2m3"], hint: "revert -m <номер родителя> <merge-коммит>.", explain: "-m 1 говорит, какого родителя считать «основной» линией." }
+  ];
+
+  // ---------------- Фильтр по уровням ----------------
+  const LEVELS = { 1: "базовый", 2: "средний", 3: "продвинутый" };
+  const LEVEL_CLASS = { 1: "basic", 2: "mid", 3: "adv" };
+  let filterLvl = 0; // 0 = все
+
+  function activeScenarios() {
+    return filterLvl ? ALL.filter((s) => s.lvl === filterLvl) : ALL.slice();
+  }
+
+  // ---------------- Нормализация и сравнение ----------------
+  function normalize(s) {
+    return s.trim().replace(/\s+/g, " ").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').toLowerCase();
+  }
+
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    const dp = new Array(n + 1);
+    for (let j = 0; j <= n; j++) dp[j] = j;
+    for (let i = 1; i <= m; i++) {
+      let prev = dp[0];
+      dp[0] = i;
+      for (let j = 1; j <= n; j++) {
+        const tmp = dp[j];
+        dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+        prev = tmp;
+      }
+    }
+    return dp[n];
+  }
+
+  function evaluateAnswer(input, variants) {
+    const ni = normalize(input);
+    if (!ni) return "empty";
+    for (const v of variants) if (normalize(v) === ni) return "correct";
+    let best = Infinity;
+    for (const v of variants) {
+      const nv = normalize(v);
+      const d = levenshtein(ni, nv);
+      const threshold = Math.max(2, Math.floor(nv.length * 0.15));
+      if (d <= threshold && d < best) best = d;
+    }
+    return best !== Infinity ? "typo" : "wrong";
+  }
+
+  // ---------------- Состояние ----------------
+  const STORE_KEY = "git-trainer-progress-v1";
+  let scenarios = activeScenarios();
+  const state = {
+    index: 0,
+    wrongCount: 0,
+    hintUsed: false,
+    solved: false,
+    revealed: false,
+    results: scenarios.map(() => "pending"),
+    hintsUsedTotal: 0,
+  };
+
+  function saveProgress() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({ filterLvl: filterLvl, index: state.index, results: state.results, hintsUsedTotal: state.hintsUsedTotal }));
+    } catch (e) {}
+  }
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (typeof d.filterLvl === "number") filterLvl = d.filterLvl;
+      scenarios = activeScenarios();
+      if (Array.isArray(d.results) && d.results.length === scenarios.length) {
+        state.results = d.results;
+        state.index = Math.min(d.index || 0, scenarios.length - 1);
+        state.hintsUsedTotal = d.hintsUsedTotal || 0;
+      }
+    } catch (e) {}
+  }
+
+  // ---------------- DOM ----------------
+  const el = {
+    stats: document.getElementById("stats"),
+    toolbar: document.getElementById("toolbar"),
+    graphRow: document.getElementById("graph-row"),
+    graphScroll: document.getElementById("graph-scroll"),
+    category: document.getElementById("category"),
+    level: document.getElementById("level"),
+    situation: document.getElementById("situation"),
+    promptRow: document.getElementById("prompt-row"),
+    input: document.getElementById("cmd-input"),
+    btnCheck: document.getElementById("btn-check"),
+    btnHint: document.getElementById("btn-hint"),
+    btnNext: document.getElementById("btn-next"),
+    btnSkip: document.getElementById("btn-skip"),
+    feedback: document.getElementById("feedback"),
+    toast: document.getElementById("toast"),
+    toastText: document.getElementById("toast-text"),
+    questionView: document.getElementById("question-view"),
+    doneScreen: document.getElementById("done-screen"),
+    doneStats: document.getElementById("done-stats"),
+    btnRestart: document.getElementById("btn-restart"),
+    resetLink: document.getElementById("reset-link"),
+  };
+
+  const ICONS = {
+    wrong: '<svg class="feedback-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.6"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    correct: '<svg class="feedback-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 12.5l3 3 6-6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    hint: '<svg class="feedback-icon" viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.45.9 1 .9 1.6v.5h5.2v-.5c0-.6.3-1.15.9-1.6A6 6 0 0 0 12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 19h5M10.2 21h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+    reveal: '<svg class="feedback-icon" viewBox="0 0 24 24" fill="none"><path d="M4 12s3.2-6.5 8-6.5S20 12 20 12s-3.2 6.5-8 6.5S4 12 4 12z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.2" stroke="currentColor" stroke-width="1.6"/></svg>',
+  };
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  // ---------------- Тулбар фильтра ----------------
+  function buildToolbar() {
+    el.toolbar.innerHTML = "";
+    const defs = [{ v: 0, t: "Все уровни" }, { v: 1, t: "Базовый" }, { v: 2, t: "Средний" }, { v: 3, t: "Продвинутый" }];
+    defs.forEach((d) => {
+      const b = document.createElement("button");
+      b.className = "filter-chip" + (filterLvl === d.v ? " active" : "");
+      b.textContent = d.t;
+      b.addEventListener("click", () => {
+        if (filterLvl === d.v) return;
+        filterLvl = d.v;
+        scenarios = activeScenarios();
+        state.index = 0;
+        state.results = scenarios.map(() => "pending");
+        state.hintsUsedTotal = 0;
+        buildToolbar();
+        buildGraph();
+        renderQuestion();
+        saveProgress();
+      });
+      el.toolbar.appendChild(b);
+    });
+  }
+
+  // ---------------- Граф ----------------
+  function buildGraph() {
+    el.graphRow.innerHTML = "";
+    scenarios.forEach((_, i) => {
+      const node = document.createElement("div");
+      node.className = "node";
+      node.id = "node-" + i;
+      node.innerHTML = '<span class="dot"></span><span class="line"></span>';
+      el.graphRow.appendChild(node);
+    });
+  }
+
+  function updateGraph() {
+    scenarios.forEach((_, i) => {
+      const node = document.getElementById("node-" + i);
+      if (!node) return;
+      node.classList.remove("correct", "skipped", "current");
+      if (i === state.index) node.classList.add("current");
+      else if (state.results[i] === "correct") node.classList.add("correct");
+      else if (state.results[i] === "skipped") node.classList.add("skipped");
+    });
+    const current = document.getElementById("node-" + state.index);
+    if (current && current.scrollIntoView) {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      current.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", inline: "center", block: "nearest" });
+    }
+  }
+
+  function updateStats() {
+    const correct = state.results.filter((r) => r === "correct").length;
+    const skipped = state.results.filter((r) => r === "skipped").length;
+    el.stats.innerHTML =
+      "Вопрос <b>" + (state.index + 1) + "</b>/" + scenarios.length +
+      " &nbsp;·&nbsp; Верно <b>" + correct + "</b>" +
+      (skipped ? " &nbsp;·&nbsp; Пропущено <b>" + skipped + "</b>" : "");
+  }
+
+  function hideFeedback() { el.feedback.className = "feedback"; el.feedback.innerHTML = ""; }
+
+  function showFeedback(kind, html) {
+    el.feedback.className = "feedback show state-" + kind;
+    el.feedback.innerHTML = (ICONS[kind] || "") + "<span>" + html + "</span>";
+  }
+
+  function renderQuestion() {
+    const s = scenarios[state.index];
+    state.wrongCount = 0;
+    state.hintUsed = false;
+    state.solved = false;
+    state.revealed = false;
+
+    el.questionView.style.display = "";
+    el.doneScreen.classList.remove("show");
+
+    el.category.textContent = s.cat;
+    el.level.textContent = LEVELS[s.lvl];
+    el.level.className = "level-tag " + LEVEL_CLASS[s.lvl];
+    el.situation.textContent = s.situation;
+    el.input.value = "";
+    el.input.disabled = false;
+    el.promptRow.classList.remove("is-wrong", "is-typo", "is-correct");
+
+    el.btnCheck.disabled = false;
+    el.btnCheck.style.display = "";
+    el.btnHint.disabled = true;
+    el.btnHint.style.display = "";
+    el.btnNext.style.display = "none";
+    el.btnSkip.style.display = "none";
+
+    hideFeedback();
+    updateGraph();
+    updateStats();
+    window.setTimeout(() => el.input.focus(), 30);
+  }
+
+  function showToast(text) {
+    el.toastText.textContent = text;
+    el.toast.classList.add("show");
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(() => el.toast.classList.remove("show"), 2600);
+  }
+
+  function lockQuestion() {
+    el.input.disabled = true;
+    el.btnCheck.style.display = "none";
+    el.btnHint.style.display = "none";
+    el.btnSkip.style.display = "none";
+  }
+
+  function revealExplain(s) {
+    if (!s.explain) return "";
+    return '<div class="explain">' + esc(s.explain) + "</div>";
+  }
+
+  function handleCheck() {
+    if (state.solved || state.revealed) return;
+    const s = scenarios[state.index];
+    const verdict = evaluateAnswer(el.input.value, s.answers);
+    el.promptRow.classList.remove("is-wrong", "is-typo", "is-correct");
+
+    if (verdict === "empty") {
+      el.promptRow.classList.add("is-wrong");
+      showFeedback("wrong", "Введите команду перед проверкой.");
+      return;
+    }
+    if (verdict === "typo") {
+      el.promptRow.classList.add("is-typo");
+      showToast("Почти! Проверьте написание команды");
+      return;
+    }
+    if (verdict === "correct") {
+      state.solved = true;
+      state.results[state.index] = "correct";
+      el.promptRow.classList.add("is-correct");
+      showFeedback("correct", "Верно! Именно эта команда решает задачу." + revealExplain(s));
+      lockQuestion();
+      el.btnNext.style.display = "";
+      updateGraph();
+      updateStats();
+      saveProgress();
+      return;
+    }
+    state.wrongCount++;
+    el.promptRow.classList.add("is-wrong");
+    el.btnHint.disabled = false;
+    if (state.wrongCount === 1) showFeedback("wrong", "Пока не то. Попробуйте ещё раз — теперь доступна подсказка.");
+    else showFeedback("wrong", "Всё ещё неверно (попытка " + state.wrongCount + ").");
+    if (state.wrongCount >= 3) el.btnSkip.style.display = "";
+  }
+
+  function handleHint() {
+    if (el.btnHint.disabled) return;
+    const s = scenarios[state.index];
+    state.hintUsed = true;
+    state.hintsUsedTotal++;
+    showFeedback("hint", esc(s.hint));
+  }
+
+  function handleSkip() {
+    const s = scenarios[state.index];
+    state.revealed = true;
+    state.results[state.index] = "skipped";
+    lockQuestion();
+    showFeedback("reveal", "Правильный ответ: <code>" + esc(s.answers[0]) + "</code>" + revealExplain(s));
+    el.btnNext.style.display = "";
+    updateGraph();
+    updateStats();
+    saveProgress();
+  }
+
+  function handleNext() {
+    if (state.index < scenarios.length - 1) {
+      state.index++;
+      renderQuestion();
+      saveProgress();
+    } else {
+      showDone();
+    }
+  }
+
+  function showDone() {
+    el.questionView.style.display = "none";
+    el.doneScreen.classList.add("show");
+    const correct = state.results.filter((r) => r === "correct").length;
+    const skipped = state.results.filter((r) => r === "skipped").length;
+    el.doneStats.innerHTML =
+      statBlock(scenarios.length, "всего ситуаций") +
+      statBlock(correct, "решено верно") +
+      statBlock(skipped, "пропущено") +
+      statBlock(state.hintsUsedTotal, "подсказок использовано");
+    updateStats();
+  }
+
+  function statBlock(num, label) {
+    return '<div class="done-stat"><span class="num">' + num + '</span><span class="lbl">' + label + "</span></div>";
+  }
+
+  function resetAll() {
+    state.index = 0;
+    state.hintsUsedTotal = 0;
+    state.results = scenarios.map(() => "pending");
+    renderQuestion();
+    saveProgress();
+  }
+
+  el.btnCheck.addEventListener("click", handleCheck);
+  el.btnHint.addEventListener("click", handleHint);
+  el.btnNext.addEventListener("click", handleNext);
+  el.btnSkip.addEventListener("click", handleSkip);
+  el.btnRestart.addEventListener("click", resetAll);
+  el.resetLink.addEventListener("click", resetAll);
+
+  el.input.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (state.solved || state.revealed) handleNext();
+    else handleCheck();
+  });
+  el.input.addEventListener("input", () => {
+    el.promptRow.classList.remove("is-wrong", "is-typo");
+  });
+
+  // ---------------- Init ----------------
+  loadProgress();
+  buildToolbar();
+  buildGraph();
+  renderQuestion();
+})();
+</script>
+
+</body></html>

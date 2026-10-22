@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoBurrow — Go для автоматизации тестирования</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1416;
+    --bg-soil-top:#3A2F22;
+    --bg-soil-bottom:#0B0F10;
+    --panel:#171D20;
+    --panel-2:#1D2528;
+    --border:#2A3338;
+    --border-soft:#232B2E;
+    --text:#E9EDEA;
+    --text-muted:#8CA0A0;
+    --text-dim:#5E7071;
+    --accent:#28C4B8;
+    --accent-dim:#1B4E4C;
+    --amber:#F2B155;
+    --success:#5CD68C;
+    --success-dim:#1E3D2C;
+    --error:#F27B6B;
+    --error-dim:#43241F;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --sans:'Inter', -apple-system, sans-serif;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent-dim); color:var(--text);}
+
+  a{color:var(--accent);}
+
+  .app{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    min-height:100vh;
+  }
+
+  /* ===== Burrow rail ===== */
+  .rail{
+    position:relative;
+    background:linear-gradient(180deg, var(--bg-soil-top) 0%, #211A13 18%, #17130F 38%, #100E0D 60%, var(--bg-soil-bottom) 100%);
+    border-right:1px solid #000;
+    padding:22px 0 40px;
+    overflow-y:auto;
+  }
+  .rail-brand{
+    padding:0 20px 18px;
+    border-bottom:1px dashed rgba(255,255,255,0.08);
+    margin-bottom:6px;
+  }
+  .rail-brand .mark{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:19px;
+    letter-spacing:-0.02em;
+    color:#F5EFE3;
+  }
+  .rail-brand .mark span{color:var(--accent);}
+  .rail-brand .sub{
+    font-size:11.5px;
+    color:#B7A88E;
+    margin-top:4px;
+    letter-spacing:.02em;
+  }
+  .rail-progress{
+    margin:14px 20px 8px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:#B7A88E;
+    display:flex;
+    justify-content:space-between;
+  }
+  .rail-progress-bar{
+    height:4px;
+    margin:0 20px 18px;
+    background:rgba(255,255,255,0.08);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .rail-progress-bar > i{
+    display:block; height:100%;
+    background:linear-gradient(90deg, var(--accent), var(--amber));
+    width:0%;
+    transition:width .4s ease;
+  }
+
+  .tunnel{
+    position:relative;
+    margin-left:34px;
+    padding-left:22px;
+    border-left:2px dotted rgba(255,255,255,0.14);
+  }
+  .node{
+    position:relative;
+    display:block;
+    width:100%;
+    text-align:left;
+    background:transparent;
+    border:none;
+    color:#CBB99A;
+    font-family:var(--sans);
+    cursor:pointer;
+    padding:11px 12px 11px 16px;
+    margin-bottom:2px;
+    border-radius:0 8px 8px 0;
+    transition:background .15s ease, color .15s ease;
+  }
+  .node:hover{background:rgba(255,255,255,0.05); color:#F1E7D2;}
+  .node.active{
+    background:linear-gradient(90deg, rgba(40,196,184,0.18), rgba(40,196,184,0.02));
+    color:#fff;
+  }
+  .node .dot{
+    position:absolute; left:-29px; top:16px;
+    width:11px; height:11px; border-radius:50%;
+    background:#0B0F10;
+    border:2px solid rgba(255,255,255,0.25);
+  }
+  .node.done .dot{ background:var(--success); border-color:var(--success);}
+  .node.active .dot{ background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 4px rgba(40,196,184,0.2);}
+  .node .depth{
+    font-family:var(--mono); font-size:10px; letter-spacing:.06em;
+    color:#8C7A5C; display:block; margin-bottom:2px; text-transform:uppercase;
+  }
+  .node.active .depth{ color:var(--accent);}
+  .node .ttl{ font-size:13.2px; font-weight:600; display:block;}
+  .node .chk{ float:right; font-size:11px; color:var(--success); }
+
+  /* ===== Main ===== */
+  main{
+    padding:34px 44px 80px;
+    max-width:920px;
+  }
+  .topbar{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:22px; gap:12px; flex-wrap:wrap;
+  }
+  .topbar h1{
+    font-family:var(--mono); font-size:21px; margin:0; letter-spacing:-0.01em;
+  }
+  .topbar .depth-tag{
+    font-family:var(--mono); font-size:11px; color:var(--amber);
+    border:1px solid rgba(242,177,85,0.35); padding:3px 9px; border-radius:20px;
+    text-transform:uppercase; letter-spacing:.06em; white-space:nowrap;
+  }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:22px 24px;
+    margin-bottom:20px;
+  }
+  .card h2{
+    font-family:var(--mono); font-size:13px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-muted); margin:0 0 14px; display:flex; align-items:center; gap:8px;
+  }
+  .card h2 i.bar{width:14px; height:2px; background:var(--accent); display:inline-block;}
+  .theory p{ margin:0 0 12px; font-size:14.5px; color:#CFD8D6;}
+  .theory ul{ margin:0 0 12px; padding-left:20px; font-size:14.5px; color:#CFD8D6;}
+  .theory li{margin-bottom:5px;}
+  .theory code.inline{
+    font-family:var(--mono); background:#0F1516; border:1px solid var(--border-soft);
+    padding:1px 5px; border-radius:4px; font-size:12.5px; color:var(--amber);
+  }
+  table.cmp{ width:100%; border-collapse:collapse; margin:0 0 14px; font-size:13px;}
+  table.cmp th, table.cmp td{ border:1px solid var(--border-soft); padding:7px 10px; text-align:left; color:#CFD8D6;}
+  table.cmp th{ color:var(--text-muted); font-family:var(--mono); font-size:11.5px; text-transform:uppercase;}
+
+  pre.code{
+    background:#0B1011;
+    border:1px solid var(--border-soft);
+    border-radius:8px;
+    padding:14px 16px;
+    overflow-x:auto;
+    font-family:var(--mono);
+    font-size:12.6px;
+    line-height:1.6;
+    color:#D9E4E2;
+    margin:0 0 12px;
+  }
+  pre.code .kw{color:#7FCFEA;}
+  pre.code .str{color:#F2B155;}
+  pre.code .cmt{color:#5E7071;}
+
+  .task-card{
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    margin-bottom:16px;
+  }
+  .task-card .task-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  }
+  .task-card .task-label{
+    font-family:var(--mono); font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em;
+  }
+  .task-card .status-pill{
+    font-family:var(--mono); font-size:10.5px; padding:2px 8px; border-radius:20px;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+  }
+  .status-pill.solved{ color:var(--success); border-color:var(--success-dim); background:var(--success-dim);}
+  .task-prompt{ font-size:14.5px; color:#DCE6E4; margin-bottom:14px;}
+
+  textarea.answer{
+    width:100%; min-height:130px;
+    background:#0B1011; color:#EAF3F1;
+    border:1px solid var(--border-soft); border-radius:8px;
+    font-family:var(--mono); font-size:13px; padding:12px 14px;
+    resize:vertical; outline:none;
+  }
+  textarea.answer:focus{ border-color:var(--accent);}
+
+  .choice-list{ display:flex; flex-direction:column; gap:8px;}
+  .choice-opt{
+    display:flex; gap:10px; align-items:flex-start;
+    border:1px solid var(--border-soft); border-radius:8px; padding:10px 12px;
+    cursor:pointer; background:#12181A; transition:border-color .15s;
+  }
+  .choice-opt:hover{ border-color:var(--accent-dim);}
+  .choice-opt.picked{ border-color:var(--accent);}
+  .choice-opt.correct{ border-color:var(--success); background:var(--success-dim);}
+  .choice-opt.wrong{ border-color:var(--error); background:var(--error-dim);}
+  .choice-opt input{ margin-top:3px;}
+  .choice-opt pre{ margin:0; background:transparent; border:none; padding:0; font-size:12.5px; white-space:pre-wrap;}
+  .choice-opt span.plain{ font-size:13.5px; color:#DCE6E4; padding-top:1px;}
+
+  .row-actions{ display:flex; gap:10px; align-items:center; margin-top:14px;}
+  button.btn{
+    font-family:var(--sans); font-weight:600; font-size:13.5px;
+    background:var(--accent); color:#052220; border:none;
+    padding:9px 18px; border-radius:7px; cursor:pointer;
+    transition:transform .1s, opacity .15s;
+  }
+  button.btn:hover{ opacity:.9;}
+  button.btn:active{ transform:scale(.97);}
+  button.btn.ghost{
+    background:transparent; color:var(--text-muted); border:1px solid var(--border);
+  }
+  button.btn.ghost:hover{ color:var(--text); border-color:var(--text-dim);}
+
+  .feedback{ margin-top:12px; font-size:13.5px; padding:10px 12px; border-radius:8px; display:none;}
+  .feedback.show{ display:block;}
+  .feedback.ok{ background:var(--success-dim); color:#B7EFC9; border:1px solid rgba(92,214,140,.35);}
+  .feedback.bad{ background:var(--error-dim); color:#F6C4BA; border:1px solid rgba(242,123,107,.35);}
+
+  .checklist{ list-style:none; padding:0; margin:8px 0 0; font-family:var(--mono); font-size:12.3px;}
+  .checklist li{ padding:3px 0; color:var(--text-dim);}
+  .checklist li.pass{ color:var(--success);}
+  .checklist li.fail{ color:var(--error);}
+
+  .nav-footer{
+    display:flex; justify-content:space-between; margin-top:28px; gap:10px; flex-wrap:wrap;
+  }
+
+  footer.credits{
+    margin-top:40px; font-size:11.5px; color:var(--text-dim); font-family:var(--mono);
+  }
+
+  @media (max-width:760px){
+    .app{grid-template-columns:1fr;}
+    .rail{
+      position:sticky; top:0; z-index:5;
+      padding:14px 0; overflow-x:auto; overflow-y:hidden;
+      background:linear-gradient(90deg, var(--bg-soil-top), var(--bg-soil-bottom));
+      border-right:none; border-bottom:1px solid #000;
+    }
+    .rail-brand,.rail-progress,.rail-progress-bar{display:none;}
+    .tunnel{
+      display:flex; gap:6px; margin-left:14px; padding-left:0; border-left:none; width:max-content;
+    }
+    .node{ width:auto; white-space:nowrap; padding:8px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.12);}
+    .node .dot{display:none;}
+    main{padding:22px 16px 60px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="rail" id="rail">
+    <div class="rail-brand">
+      <div class="mark">Go<span>Burrow</span></div>
+      <div class="sub">Go для автоматизации тестирования</div>
+    </div>
+    <div class="rail-progress"><span>Прогресс</span><span id="progressLabel">0 / 0</span></div>
+    <div class="rail-progress-bar"><i id="progressBar"></i></div>
+    <div class="tunnel" id="tunnel"></div>
+  </nav>
+
+  <main>
+    <div class="topbar">
+      <h1 id="topicTitle">—</h1>
+      <span class="depth-tag" id="depthTag">ЭТАП 1</span>
+    </div>
+
+    <section class="card theory">
+      <h2><i class="bar"></i>Объяснение темы</h2>
+      <div id="theoryBody"></div>
+    </section>
+
+    <section id="tasksHost"></section>
+
+    <div class="nav-footer">
+      <button class="btn ghost" id="prevBtn">← Предыдущий этап</button>
+      <button class="btn ghost" id="resetBtn">Сбросить прогресс</button>
+      <button class="btn ghost" id="nextBtn">Следующий этап →</button>
+    </div>
+
+    <footer class="credits">GoBurrow · по мотивам плана «Go для автоматизации тестирования» · прогресс сохраняется в браузере</footer>
+  </main>
+</div>
+
+<script>
+/* ============================= HELPERS ============================= */
+
+function esc(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function hl(code){
+  var lines = esc(code).split('\n');
+  var kws = ['func','var','const','if','else','for','range','return','package','import',
+    'type','struct','interface','map','chan','go','select','switch','case','default',
+    'break','continue','defer','nil','true','false','iota','make','len','cap','append','error'];
+  return lines.map(function(line){
+    var cmtIdx = line.indexOf('//');
+    var head = cmtIdx >= 0 ? line.slice(0,cmtIdx) : line;
+    var tail = cmtIdx >= 0 ? '<span class="cmt">//'+line.slice(cmtIdx+2)+'</span>' : '';
+    head = head.replace(/"([^"]*)"/g, '<span class="str">"$1"</span>');
+    kws.forEach(function(k){
+      var re = new RegExp('\\b'+k+'\\b','g');
+      head = head.replace(re, '<span class="kw">'+k+'</span>');
+    });
+    return head + tail;
+  }).join('\n');
+}
+
+/* ============================= DATA ============================= */
+
+var TOPICS = [
+{
+  id:'stage1a', depth:1, title:'Этап 1.1. Синтаксис, типы, срезы, map, структуры',
+  theory:
+    '<p>Go — статически типизированный компилируемый язык без наследования классов; полиморфизм строится через ' +
+    'интерфейсы (разберём в следующей теме). Базовые типы жёстко разделены — неявных преобразований между ними нет.</p>' +
+    '<p>Slice (срез) — это «окно» над массивом: указатель, длина и capacity. Понимание этого предотвращает частые ' +
+    'баги в тестовых данных: <code class="inline">append</code> может как мутировать исходный массив (если хватает ' +
+    'capacity), так и создать новый — это одна из главных ловушек (slice gotchas) наравне с aliasing и append на ' +
+    'nil-срезе.</p>' +
+    '<p>Map — неупорядоченная хеш-таблица, итерация по ней недетерминирована; если тесту нужен стабильный порядок ' +
+    'генерации данных — сортируйте ключи явно.</p>' +
+    '<p>Структуры (struct) + встраивание (embedding) — механизм композиции вместо наследования: один struct может ' +
+    '«включать» другой как поле без явного имени, и его поля/методы становятся доступны напрямую.</p>' +
+    hl('type TestCase struct {\n    Name     string\n    Input    int\n    Expected int\n}\n\nfunc sliceGotcha() {\n    a := []int{1, 2, 3}\n    b := a[:2]        // b делит память с a\n    b = append(b, 99) // перезапишет a[2]!\n    fmt.Println(a)    // [1 2 99]\n}'),
+  tasks:[
+    {
+      type:'write', id:'stage1-1',
+      prompt:'Напишите функцию <code class="inline">DedupeInts(nums []int) []int</code>, которая убирает дубликаты, ' +
+             'сохраняя порядок первого появления. Используйте <code class="inline">map[int]bool</code>, чтобы ' +
+             'отмечать уже увиденные значения, и обходите срез через <code class="inline">range</code>.',
+      checks:[
+        {label:'сигнатура func DedupeInts(nums []int) []int', re:/func\s+DedupeInts\(nums\s+\[\]int\)\s*\[\]int/},
+        {label:'используется map[int]bool для отслеживания увиденных', re:/map\[int\]bool/},
+        {label:'обход через range nums', re:/range\s+nums/},
+        {label:'построение результата через append', re:/append\(/}
+      ],
+      hint:'func DedupeInts(nums []int) []int {\n    seen := map[int]bool{}\n    result := []int{}\n    for _, n := range nums {\n        if !seen[n] {\n            seen[n] = true\n            result = append(result, n)\n        }\n    }\n    return result\n}'
+    },
+    {
+      type:'choice', id:'stage1-2',
+      prompt:'Дан код:<br><code class="inline">a := []int{1, 2, 3, 4, 5}; b := a[:2]; b = append(b, 99)</code>.<br>' +
+             'Что напечатает <code class="inline">fmt.Println(a)</code> после этого?',
+      options:[
+        '[1 2 3 4 5]',
+        '[1 2 99 4 5]',
+        '[1 2 99]',
+        'panic: index out of range'
+      ],
+      correct:1,
+      explanation:'b := a[:2] делит память с a и имеет запас capacity, поэтому append(b, 99) пишет прямо в исходный массив, перезаписывая a[2]. Это классическая ловушка slice aliasing.'
+    },
+    {
+      type:'write', id:'stage1-3',
+      prompt:'Опишите структуру <code class="inline">User</code> со встроенной (embedded) структурой ' +
+             '<code class="inline">Address</code>, добавьте json-теги к полям и сериализуйте значение через ' +
+             '<code class="inline">json.Marshal</code>.',
+      checks:[
+        {label:'структура Address объявлена', re:/type\s+Address\s+struct\s*\{/},
+        {label:'User встраивает Address (без имени поля)', re:/type\s+User\s+struct\s*\{[^}]*\bAddress\b(?!\s+\w)/},
+        {label:'есть json-теги вида `json:"..."`', re:/`json:"[a-zA-Z]+"`/},
+        {label:'сериализация через json.Marshal(', re:/json\.Marshal\(/}
+      ],
+      hint:'type Address struct {\n    City string `json:"city"`\n}\n\ntype User struct {\n    Name    string `json:"name"`\n    Address        // embedding: поля Address доступны напрямую\n}\n\ndata, err := json.Marshal(User{Name: "Аня", Address: Address{City: "Москва"}})'
+    }
+  ]
+},
+{
+  id:'stage1b', depth:1, title:'Этап 1.2. Интерфейсы и обработка ошибок',
+  theory:
+    '<p>Интерфейсы в Go неявные (structural typing) — не нужно писать <code class="inline">implements</code>. Именно ' +
+    'на этом строится тестируемость: любой тип, реализующий методы интерфейса, может подменить реальную зависимость ' +
+    'в тесте — это ручной прообраз мокирования (позже это будет автоматически генерировать GoMock).</p>' +
+    '<p>Ошибка — обычное значение (<code class="inline">error</code> — интерфейс с методом ' +
+    '<code class="inline">Error() string</code>), а не исключение. Для проверки типов и обёрнутых ошибок используют ' +
+    '<code class="inline">errors.Is</code> / <code class="inline">errors.As</code> вместе с ' +
+    '<code class="inline">fmt.Errorf("...: %w", err)</code>.</p>' +
+    '<p><code class="inline">panic/recover</code> — крайний случай, аналог исключений. В тестах иногда нужно перехватить ' +
+    'панику через <code class="inline">defer recover()</code>, чтобы проверить защитный код, не роняя весь тестовый ' +
+    'прогон.</p>' +
+    hl('type Fetcher interface {\n    Fetch(url string) ([]byte, error)\n}\n\ntype mockFetcher struct {\n    data []byte\n    err  error\n}\n\nfunc (m *mockFetcher) Fetch(url string) ([]byte, error) {\n    return m.data, m.err\n}'),
+  tasks:[
+    {
+      type:'write', id:'stage1b-1',
+      prompt:'Спроектируйте интерфейс <code class="inline">PaymentGateway</code> с методом ' +
+             '<code class="inline">Charge(amountCents int) error</code>, и реализуйте ' +
+             '<code class="inline">FakeGateway</code> — управляемую из теста структуру с полем ' +
+             '<code class="inline">ShouldFail bool</code>, которая возвращает ошибку, если это поле true.',
+      checks:[
+        {label:'интерфейс PaymentGateway с методом Charge', re:/type\s+PaymentGateway\s+interface\s*\{[^}]*Charge\(amountCents\s+int\)\s*error/},
+        {label:'структура FakeGateway с полем ShouldFail bool', re:/type\s+FakeGateway\s+struct\s*\{[^}]*ShouldFail\s+bool/},
+        {label:'метод Charge у FakeGateway', re:/func\s*\([^)]*FakeGateway\)\s*Charge\(amountCents\s+int\)\s*error/},
+        {label:'возврат ошибки при ShouldFail', re:/if\s+f\.ShouldFail\s*\{/}
+      ],
+      hint:'type PaymentGateway interface {\n    Charge(amountCents int) error\n}\n\ntype FakeGateway struct {\n    ShouldFail bool\n}\n\nfunc (f *FakeGateway) Charge(amountCents int) error {\n    if f.ShouldFail {\n        return errors.New("payment declined")\n    }\n    return nil\n}'
+    },
+    {
+      type:'write', id:'stage1b-2',
+      prompt:'Напишите функцию <code class="inline">SafeDivide(a, b int) (result int, err error)</code>, которая через ' +
+             '<code class="inline">defer</code> и <code class="inline">recover()</code> перехватывает панику деления ' +
+             'на 0 и возвращает её как обычную ошибку вместо падения программы.',
+      checks:[
+        {label:'сигнатура с именованными возвратами (result int, err error)', re:/func\s+SafeDivide\(a,\s*b\s+int\)\s*\(result\s+int,\s*err\s+error\)/},
+        {label:'defer func() { ... }() в начале', re:/defer\s+func\(\)\s*\{/},
+        {label:'вызов recover()', re:/recover\(\)/},
+        {label:'запись в именованный err внутри defer', re:/err\s*=/}
+      ],
+      hint:'func SafeDivide(a, b int) (result int, err error) {\n    defer func() {\n        if r := recover(); r != nil {\n            err = fmt.Errorf("recovered: %v", r)\n        }\n    }()\n    result = a / b\n    return\n}'
+    }
+  ]
+},
+{
+  id:'stage1c', depth:1, title:'Этап 1.3. Горутины и каналы (базовый уровень)',
+  theory:
+    '<p>Горутина — лёгкий поток выполнения, управляемый рантаймом Go, запускается ключевым словом ' +
+    '<code class="inline">go</code>. Каналы — механизм безопасной передачи данных между горутинами.</p>' +
+    '<p>Для тестировщика ценность этой темы не в написании конкурентного продакшн-кода, а в том, чтобы понимать, как ' +
+    'параллельно выполняются тесты (<code class="inline">t.Parallel()</code>, <code class="inline">ginkgo -p</code>) и ' +
+    'как избегать гонок данных (race conditions) в самом тестовом коде.</p>' +
+    '<p><code class="inline">go test -race</code> — детектор гонок данных, обязателен к использованию при ' +
+    'параллельных тестах: без него гонка может годами не проявляться на CI и внезапно всплыть в проде.</p>' +
+    hl('func TestParallelExample(t *testing.T) {\n    t.Parallel()\n    // тело теста — безопасно выполняется параллельно с другими t.Parallel()-тестами\n}'),
+  tasks:[
+    {
+      type:'write', id:'stage1c-1',
+      prompt:'Напишите функцию <code class="inline">CounterRace() int</code>: запустите 100 горутин, каждая из которых ' +
+             'инкрементирует общую переменную-счётчик без синхронизации, дождитесь их завершения через ' +
+             '<code class="inline">sync.WaitGroup</code> и верните итоговое значение. Такой код специально демонстрирует ' +
+             'гонку данных, которую покажет <code class="inline">go test -race</code>.',
+      checks:[
+        {label:'сигнатура func CounterRace() int', re:/func\s+CounterRace\(\)\s*int/},
+        {label:'используется sync.WaitGroup', re:/sync\.WaitGroup/},
+        {label:'запуск 100 горутин через go func()', re:/go\s+func\(\)/},
+        {label:'wg.Wait() перед возвратом результата', re:/wg\.Wait\(\)/}
+      ],
+      hint:'func CounterRace() int {\n    var wg sync.WaitGroup\n    counter := 0\n    for i := 0; i < 100; i++ {\n        wg.Add(1)\n        go func() {\n            defer wg.Done()\n            counter++ // гонка: нет синхронизации\n        }()\n    }\n    wg.Wait()\n    return counter\n}'
+    },
+    {
+      type:'write', id:'stage1c-2',
+      prompt:'Напишите исправленную версию <code class="inline">CounterSafe() int</code> — тот же сценарий, но с ' +
+             'защитой инкремента через <code class="inline">sync.Mutex</code>, чтобы гонка данных исчезла.',
+      checks:[
+        {label:'сигнатура func CounterSafe() int', re:/func\s+CounterSafe\(\)\s*int/},
+        {label:'используется sync.Mutex', re:/sync\.Mutex/},
+        {label:'вызов mu.Lock()', re:/\.Lock\(\)/},
+        {label:'вызов mu.Unlock()', re:/\.Unlock\(\)/}
+      ],
+      hint:'func CounterSafe() int {\n    var wg sync.WaitGroup\n    var mu sync.Mutex\n    counter := 0\n    for i := 0; i < 100; i++ {\n        wg.Add(1)\n        go func() {\n            defer wg.Done()\n            mu.Lock()\n            counter++\n            mu.Unlock()\n        }()\n    }\n    wg.Wait()\n    return counter\n}'
+    }
+  ]
+},
+{
+  id:'stage1d', depth:1, title:'Этап 1.4. Организация проекта',
+  theory:
+    '<p>Стандартная раскладка (не строгий стандарт, но общепринятая конвенция): <code class="inline">cmd/</code> — ' +
+    'точки входа приложения, <code class="inline">internal/</code> — приватный код, который нельзя импортировать из ' +
+    'внешних модулей, <code class="inline">pkg/</code> — переиспользуемые публичные пакеты.</p>' +
+    '<p>Для тестовых фреймворков к этому обычно добавляют <code class="inline">tests/</code> (сами тесты, отделённые ' +
+    'от кода) и <code class="inline">testdata/</code> — Go автоматически игнорирует эту директорию при сборке, что ' +
+    'удобно для хранения тестовых фикстур (JSON-примеров, скриншотов, эталонных файлов) без риска, что они попадут в ' +
+    'бинарник.</p>' +
+    '<p>Growing-репозиторий: практика последующих этапов накапливается в одной и той же структуре, а не в ' +
+    'разрозненных учебных проектах — так к финальному этапу у вас уже есть цельный тестовый фреймворк.</p>',
+  tasks:[
+    {
+      type:'choice', id:'stage1d-1',
+      prompt:'Какая директория предназначена для приватного кода, который нельзя импортировать из внешних модулей?',
+      options:[
+        'cmd/',
+        'internal/',
+        'pkg/',
+        'testdata/'
+      ],
+      correct:1,
+      explanation:'internal/ — специальная директория: компилятор Go запрещает импортировать из неё пакеты в любом модуле, кроме того, что содержит родительскую internal/. Это встроенный, а не просто договорной механизм инкапсуляции.'
+    },
+    {
+      type:'choice', id:'stage1d-2',
+      prompt:'Почему директория testdata/ удобна для хранения тестовых фикстур?',
+      options:[
+        'Go автоматически игнорирует testdata/ при сборке — там можно держать вспомогательные файлы, не влияя на бинарник',
+        'testdata/ ускоряет запуск тестов по сравнению с обычной директорией',
+        'testing package автоматически подгружает из testdata/ ожидаемые значения без явного чтения файлов',
+        'Это обязательное требование golangci-lint'
+      ],
+      correct:0,
+      explanation:'Инструменты сборки Go (go build, go install) пропускают директории с именем testdata на любом уровне — поэтому туда безопасно класть JSON-фикстуры, эталонные скриншоты и любые вспомогательные для тестов файлы.'
+    }
+  ]
+},
+{
+  id:'stage2', depth:2, title:'Этап 2. Тестирование «из коробки»',
+  theory:
+    '<p>Тестовые функции имеют вид <code class="inline">func TestXxx(t *testing.T)</code> и находятся автоматически ' +
+    'по префиксу <code class="inline">Test</code> в файлах <code class="inline">*_test.go</code>. ' +
+    '<code class="inline">t.Errorf</code> отмечает провал и продолжает выполнение, <code class="inline">t.Fatalf</code> ' +
+    'прерывает тест немедленно.</p>' +
+    '<p>Table-driven tests — идиоматичный для Go способ параметризации без внешних библиотек: срез анонимных структур ' +
+    '+ цикл с <code class="inline">t.Run("название кейса", ...)</code>. Go намеренно не включает assertion-библиотеку ' +
+    'в стандартный пакет, что и подталкивает именно к такому стилю.</p>' +
+    '<p>Fuzz-тестирование (с Go 1.18) автоматически ищет граничные случаи через случайные входные данные — полезно ' +
+    'для парсинга, сериализации, валидации. Полезные флаги: <code class="inline">-run</code>, <code class="inline">-race</code>, ' +
+    '<code class="inline">-cover</code>, <code class="inline">-coverprofile</code>.</p>' +
+    hl('func TestAdd(t *testing.T) {\n    tests := []struct {\n        name     string\n        a, b     int\n        expected int\n    }{\n        {"positive numbers", 2, 3, 5},\n        {"negative numbers", -2, -3, -5},\n        {"zero", 0, 0, 0},\n    }\n\n    for _, tc := range tests {\n        t.Run(tc.name, func(t *testing.T) {\n            got := Add(tc.a, tc.b)\n            if got != tc.expected {\n                t.Errorf("Add(%d, %d) = %d; want %d", tc.a, tc.b, got, tc.expected)\n            }\n        })\n    }\n}'),
+  tasks:[
+    {
+      type:'write', id:'stage2-1',
+      prompt:'Напишите table-driven тест <code class="inline">TestAdd</code> для функции ' +
+             '<code class="inline">Add(a, b int) int</code>: срез анонимных структур с полями name/a/b/expected, ' +
+             'минимум 3 кейса, обход через <code class="inline">t.Run</code>, провал — через <code class="inline">t.Errorf</code>.',
+      checks:[
+        {label:'func TestAdd(t *testing.T)', re:/func\s+TestAdd\(t\s+\*testing\.T\)/},
+        {label:'срез структур tests := []struct', re:/tests\s*:=\s*\[\]struct/},
+        {label:'подтесты через t.Run(', re:/t\.Run\(/},
+        {label:'провал через t.Errorf(', re:/t\.Errorf\(/}
+      ],
+      hint:'func TestAdd(t *testing.T) {\n    tests := []struct {\n        name     string\n        a, b     int\n        expected int\n    }{\n        {"positive", 2, 3, 5},\n        {"negative", -2, -3, -5},\n        {"zero", 0, 0, 0},\n    }\n    for _, tc := range tests {\n        t.Run(tc.name, func(t *testing.T) {\n            got := Add(tc.a, tc.b)\n            if got != tc.expected {\n                t.Errorf("Add(%d,%d)=%d; want %d", tc.a, tc.b, got, tc.expected)\n            }\n        })\n    }\n}'
+    },
+    {
+      type:'choice', id:'stage2-2',
+      prompt:'Какая команда покажет подробный HTML-отчёт о покрытии кода тестами?',
+      options:[
+        'go test -cover ./...',
+        'go test -coverprofile=cover.out ./... && go tool cover -html=cover.out',
+        'go vet ./...',
+        'go build -cover ./...'
+      ],
+      correct:1,
+      explanation:'go test -cover ./... даёт только процент в консоли. Чтобы получить HTML-отчёт по конкретным строкам, нужно сначала сохранить профиль (-coverprofile), а затем открыть его через go tool cover -html.'
+    }
+  ]
+},
+{
+  id:'stage3', depth:3, title:'Этап 3. Экосистема тестовых фреймворков',
+  theory:
+    '<p><b>Testify</b> — три ключевых пакета: <code class="inline">assert</code> (отмечает провал и продолжает), ' +
+    '<code class="inline">require</code> (прерывает тест немедленно, аналог Fatalf) и <code class="inline">suite</code> ' +
+    '(группировка тестов в стиле xUnit с Setup/Teardown). Остаётся дефолтным выбором для большинства Go-проектов.</p>' +
+    '<p>BDD-альтернатива Testify — <b>Ginkgo + Gomega</b>, разобрана отдельно в следующей теме (Этап 3.x).</p>' +
+    '<p><b>GoMock</b> генерирует моки из интерфейсов через <code class="inline">mockgen</code> и умеет проверять не ' +
+    'только возвращаемые значения, но и факт/порядок/количество вызовов (<code class="inline">EXPECT().Times(1)</code>).</p>' +
+    hl('func TestDivide(t *testing.T) {\n    result, err := Divide(10, 2)\n    assert.NoError(t, err)\n    assert.Equal(t, 5, result)\n\n    _, err = Divide(10, 0)\n    assert.Error(t, err)\n}\n\nmockFetcher.EXPECT().\n    Fetch("http://example.com").\n    Return([]byte("data"), nil).\n    Times(1)'),
+  tasks:[
+    {
+      type:'write', id:'stage3-1',
+      prompt:'Напишите тест <code class="inline">TestDivide</code> с помощью testify: для успешного деления ' +
+             'используйте <code class="inline">assert.NoError</code> и <code class="inline">assert.Equal</code>, ' +
+             'для деления на 0 — <code class="inline">assert.Error</code>.',
+      checks:[
+        {label:'используется assert.NoError(', re:/assert\.NoError\(/},
+        {label:'используется assert.Equal(', re:/assert\.Equal\(/},
+        {label:'используется assert.Error(', re:/assert\.Error\(/}
+      ],
+      hint:'func TestDivide(t *testing.T) {\n    result, err := Divide(10, 2)\n    assert.NoError(t, err)\n    assert.Equal(t, 5, result)\n\n    _, err = Divide(10, 0)\n    assert.Error(t, err)\n}'
+    },
+    {
+      type:'choice', id:'stage3-2',
+      prompt:'В чём главное отличие assert от require в testify?',
+      options:[
+        'assert останавливает тест немедленно при провале, require продолжает выполнение',
+        'require останавливает тест немедленно при провале, assert отмечает провал и продолжает выполнение',
+        'assert и require полностью идентичны по поведению',
+        'require можно использовать только внутри suite.Suite, а assert — только вне'
+      ],
+      correct:1,
+      explanation:'require — аналог t.Fatalf: если проверка провалилась, тест прерывается сразу. assert отмечает провал через t.Errorf, но выполнение продолжается — удобно, чтобы увидеть сразу несколько независимых несостыковок.'
+    }
+  ]
+},
+{
+  id:'stage3b', depth:3, title:'Этап 3.x. Ginkgo и Gomega (BDD)',
+  theory:
+    '<p>Ginkgo даёт структуру спецификаций: <code class="inline">Describe</code> — верхнеуровневый блок про сущность, ' +
+    '<code class="inline">Context</code>/<code class="inline">When</code> — условие или сценарий, ' +
+    '<code class="inline">It</code> — конкретное утверждение о поведении. Gomega добавляет к этому библиотеку матчеров: ' +
+    '<code class="inline">Expect(x).To(Equal(y))</code>, <code class="inline">HaveOccurred()</code>, ' +
+    '<code class="inline">ContainSubstring(...)</code> и асинхронные матчеры вроде ' +
+    '<code class="inline">Eventually(...)</code>.</p>' +
+    '<p>Такой стиль полезен, когда тестовая документация должна читаться как спецификация поведения (сложные бизнес-правила), ' +
+    'а не как таблица кейсов. <code class="inline">BeforeEach</code>/<code class="inline">AfterEach</code> заменяют ' +
+    'Setup/Teardown из testify.suite.</p>' +
+    '<p>У Ginkgo есть собственный CLI: <code class="inline">ginkgo generate</code> создаёт заготовку спеки, ' +
+    '<code class="inline">ginkgo -focus="..."</code> запускает только выбранные спецификации, а ' +
+    '<code class="inline">ginkgo -p</code> распараллеливает прогон целых пакетов — из коробки, без ручной настройки ' +
+    'через <code class="inline">go test</code>. Отчёты JUnit/TeamCity также генерируются «из коробки».</p>' +
+    '<table class="cmp"><tr><th>Критерий</th><th>Testify</th><th>Ginkgo+Gomega</th></tr>' +
+    '<tr><td>Скорость выполнения</td><td>выше, меньше оверхеда рантайма</td><td>ниже при больших сьютах</td></tr>' +
+    '<tr><td>Порог входа</td><td>низкий</td><td>средний, свой DSL</td></tr>' +
+    '<tr><td>Стиль</td><td>table-driven / xUnit</td><td>BDD, вложенные спецификации</td></tr>' +
+    '<tr><td>Встроенный параллелизм/CLI</td><td>нет, используется go test</td><td>да: ginkgo -p, focus/skip</td></tr>' +
+    '<tr><td>Когда выбрать</td><td>дефолт для большинства проектов</td><td>сложные бизнес-спецификации, нужна выразительность</td></tr></table>' +
+    hl('var _ = Describe("Calculator", func() {\n    var calc *Calculator\n\n    BeforeEach(func() {\n        calc = NewCalculator()\n    })\n\n    Context("when adding two positive numbers", func() {\n        It("returns their sum", func() {\n            Expect(calc.Add(2, 3)).To(Equal(5))\n        })\n    })\n\n    Context("when dividing by zero", func() {\n        It("returns an error", func() {\n            _, err := calc.Divide(10, 0)\n            Expect(err).To(HaveOccurred())\n        })\n    })\n})'),
+  tasks:[
+    {
+      type:'write', id:'stage3b-1',
+      prompt:'Перепишите тест деления на 0 в стиле Ginkgo+Gomega: <code class="inline">Describe("Calculator", ...)</code>, ' +
+             'внутри — <code class="inline">Context("when dividing by zero", ...)</code>, внутри — ' +
+             '<code class="inline">It("returns an error", ...)</code> с проверкой ' +
+             '<code class="inline">Expect(err).To(HaveOccurred())</code>.',
+      checks:[
+        {label:'Describe("Calculator", ...)', re:/Describe\("Calculator"/},
+        {label:'Context("when dividing by zero", ...)', re:/Context\("when dividing by zero"/},
+        {label:'It("returns an error", ...)', re:/It\("returns an error"/},
+        {label:'Expect(err).To(HaveOccurred())', re:/Expect\(err\)\.To\(HaveOccurred\(\)\)/}
+      ],
+      hint:'var _ = Describe("Calculator", func() {\n    Context("when dividing by zero", func() {\n        It("returns an error", func() {\n            _, err := calc.Divide(10, 0)\n            Expect(err).To(HaveOccurred())\n        })\n    })\n})'
+    },
+    {
+      type:'choice', id:'stage3b-2',
+      prompt:'Какая связка флагов Ginkgo CLI позволяет запускать только сфокусированные спецификации и распараллелить прогон пакетов — то, чего нет «из коробки» у обычного go test?',
+      options:[
+        'ginkgo -focus="..." для фокуса и ginkgo -p для параллельного запуска',
+        'go test -run Focus и go test -parallel',
+        'ginkgo --only-focused и go build -p',
+        'go vet -focus=... и go test -p'
+      ],
+      correct:0,
+      explanation:'Focus/skip спецификаций и параллельный запуск целых пакетов через -p — фирменные возможности CLI Ginkgo; go test даёт параллелизм только на уровне t.Parallel() внутри одного пакета, без встроенного focus-механизма.'
+    }
+  ]
+},
+{
+  id:'stage4', depth:4, title:'Этап 4. API и интеграционные тесты',
+  theory:
+    '<p><code class="inline">net/http/httptest</code> позволяет поднять реальный HTTP-сервер в памяти без сети — ' +
+    'быстро и изолированно. Используется и для тестирования собственных хендлеров, и для мокирования внешних API ' +
+    '(эмулировать ответ стороннего сервиса тестовым сервером).</p>' +
+    '<p><code class="inline">testcontainers-go</code> программно поднимает Docker-контейнеры (БД, очереди, кэш) прямо ' +
+    'из тестового кода, гарантируя чистое изолированное окружение для каждого прогона — в отличие от статичного ' +
+    'docker-compose в CI.</p>' +
+    '<p>Важная проверка для таких тестов: они должны проходить одинаково успешно при <code class="inline">go test -count=5</code> ' +
+    '— если иногда падают, значит между прогонами осталось неявное разделяемое состояние (например, не гарантирована ' +
+    'уникальность тестовых email при параллельном запуске).</p>' +
+    hl('func TestClient_CallsExternalAPI(t *testing.T) {\n    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n        w.WriteHeader(200)\n        w.Write([]byte(`{"status":"ok"}`))\n    }))\n    defer server.Close()\n\n    client := NewClient(server.URL)\n    result, err := client.CheckStatus()\n    assert.NoError(t, err)\n    assert.Equal(t, "ok", result)\n}'),
+  tasks:[
+    {
+      type:'write', id:'stage4-1',
+      prompt:'Создайте тестовый HTTP-сервер через <code class="inline">httptest.NewServer</code> с ' +
+             '<code class="inline">http.HandlerFunc</code>, который отвечает статусом 200, и не забудьте закрыть ' +
+             'его через <code class="inline">defer server.Close()</code>.',
+      checks:[
+        {label:'server := httptest.NewServer(', re:/server\s*:=\s*httptest\.NewServer\(/},
+        {label:'используется http.HandlerFunc(', re:/http\.HandlerFunc\(/},
+        {label:'ответ со статусом 200', re:/WriteHeader\(200\)/},
+        {label:'defer server.Close()', re:/defer\s+server\.Close\(\)/}
+      ],
+      hint:'server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n    w.WriteHeader(200)\n    w.Write([]byte(`{"status":"ok"}`))\n}))\ndefer server.Close()'
+    },
+    {
+      type:'choice', id:'stage4-2',
+      prompt:'Почему интеграционный тест с testcontainers-go должен одинаково успешно проходить при 5 повторных ' +
+             'запусках подряд (<code class="inline">go test -count=5</code>)?',
+      options:[
+        'Это формальное требование самого Go для интеграционных тестов',
+        'Чтобы убедиться, что между прогонами не осталось неявного разделяемого состояния',
+        'Это ускоряет CI-пайплайн',
+        'testcontainers-go технически не поддерживает меньшее число прогонов'
+      ],
+      correct:1,
+      explanation:'Повторный прогон — способ проверить изоляцию теста: если он иногда падает, значит где-то осталось состояние, которое переживает один прогон (например, не уникальные тестовые данные при параллельных тестах).'
+    }
+  ]
+},
+{
+  id:'stage5', depth:5, title:'Этап 5. UI / E2E-автоматизация',
+  theory:
+    '<p>Для браузерной автоматизации на Go используют <code class="inline">chromedp</code> (декларативные шаги через ' +
+    '<code class="inline">chromedp.Run(ctx, ...)</code>) или более лаконичный <code class="inline">go-rod</code>. ' +
+    'Поверх них строят Page Object Model (POM): <code class="inline">BasePage</code>/<code class="inline">LoginPage</code> ' +
+    'скрывают низкоуровневые локаторы за читаемыми методами вроде <code class="inline">Login(user, pass)</code>.</p>' +
+    '<p>Главный источник флаки-тестов в E2E — <code class="inline">time.Sleep(N)</code> вместо явного ожидания ' +
+    'конкретного условия (<code class="inline">chromedp.WaitVisible</code>, <code class="inline">WaitReady</code>). ' +
+    'Для диагностики падений в CI, где нельзя посмотреть на браузер вживую, полезен автоматический скриншот через ' +
+    '<code class="inline">t.Cleanup</code>, срабатывающий только если <code class="inline">t.Failed()</code>.</p>' +
+    hl('t.Cleanup(func() {\n    if t.Failed() {\n        var buf []byte\n        _ = base.Screenshot(&buf)\n        _ = os.WriteFile("testdata/failure.png", buf, 0644)\n    }\n})\n\nctx, cancel := chromedp.NewContext(context.Background())\ndefer cancel()\nlogin := pages.NewLoginPage(pages.NewBasePage(ctx))\nerr := login.Login("tomsmith", "SuperSecretPassword!")'),
+  tasks:[
+    {
+      type:'write', id:'stage5-1',
+      prompt:'Напишите <code class="inline">t.Cleanup</code>, который делает скриншот и сохраняет его в ' +
+             '<code class="inline">testdata/failure.png</code>, но только если тест провалился ' +
+             '(<code class="inline">t.Failed()</code>), используя <code class="inline">os.WriteFile</code>.',
+      checks:[
+        {label:'t.Cleanup(func() {', re:/t\.Cleanup\(func\(\)\s*\{/},
+        {label:'проверка if t.Failed()', re:/t\.Failed\(\)/},
+        {label:'сохранение через os.WriteFile(', re:/os\.WriteFile\(/}
+      ],
+      hint:'t.Cleanup(func() {\n    if t.Failed() {\n        var buf []byte\n        _ = base.Screenshot(&buf)\n        _ = os.WriteFile("testdata/failure.png", buf, 0644)\n    }\n})'
+    },
+    {
+      type:'choice', id:'stage5-2',
+      prompt:'Что из перечисленного — главный источник флаки-тестов в E2E-автоматизации?',
+      options:[
+        'chromedp.WaitVisible перед взаимодействием с элементом',
+        'time.Sleep(2 * time.Second) вместо ожидания конкретного условия',
+        'Page Object Model',
+        'Автоматический скриншот при падении теста'
+      ],
+      correct:1,
+      explanation:'time.Sleep — самый частый «костыль» новичков: он либо ждёт слишком долго (медленные тесты), либо недостаточно (флаки на медленном CI). Явные ожидания конкретного условия надёжнее и быстрее.'
+    }
+  ]
+},
+{
+  id:'stage6', depth:6, title:'Этап 6. Архитектура тестового фреймворка',
+  theory:
+    '<p>Fluent-ассерты поверх Testify — DSL под конкретную предметную область теста, чейнящийся вместо построчных ' +
+    '<code class="inline">assert.Equal</code>: например <code class="inline">ExpectUser(t, user).HasName(...).HasEmail(...)</code>. ' +
+    'Такой код читается как спецификация, а не как набор проверок.</p>' +
+    '<p>Централизованная конфигурация окружений (<code class="inline">APP_ENV</code>, <code class="inline">BASE_URL</code> ' +
+    'через переменные окружения или <code class="inline">config.Load()</code>) позволяет запускать один и тот же набор ' +
+    'тестов на разных окружениях без правки кода — в отличие от хардкода URL прямо в тестовом файле.</p>' +
+    '<p>Билдеры тестовых данных должны гарантировать уникальность (например, email через uuid) даже при ' +
+    '<code class="inline">t.Parallel()</code> — иначе параллельные тесты начинают конфликтовать на уникальных ' +
+    'constraint-ах в БД.</p>' +
+    hl('ExpectUser(t, user).\n    HasName("Alice").\n    HasEmail("alice@example.com").\n    HasAgeAbove(18)\n\n// APP_ENV=local go test ./tests/api/...\n// APP_ENV=stage BASE_URL=http://localhost:8080 go test ./tests/api/...'),
+  tasks:[
+    {
+      type:'write', id:'stage6-1',
+      prompt:'Напишите вызов fluent-ассерта <code class="inline">ExpectUser</code> для проверки, что у ' +
+             '<code class="inline">user</code> имя "Alice", email "alice@example.com" и возраст больше 18, ' +
+             'используя чейнинг методов <code class="inline">HasName</code>, <code class="inline">HasEmail</code>, ' +
+             '<code class="inline">HasAgeAbove</code>.',
+      checks:[
+        {label:'ExpectUser(t, user)', re:/ExpectUser\(t,\s*user\)/},
+        {label:'.HasName("Alice")', re:/HasName\("Alice"\)/},
+        {label:'.HasEmail("alice@example.com")', re:/HasEmail\("alice@example\.com"\)/},
+        {label:'.HasAgeAbove(18)', re:/HasAgeAbove\(18\)/}
+      ],
+      hint:'ExpectUser(t, user).\n    HasName("Alice").\n    HasEmail("alice@example.com").\n    HasAgeAbove(18)'
+    },
+    {
+      type:'choice', id:'stage6-2',
+      prompt:'Какой подход к конфигурации окружений в тестовом фреймворке правильный?',
+      options:[
+        'Хардкодить BASE_URL прямо в тестовом файле для каждого окружения отдельно',
+        'Читать BASE_URL / APP_ENV из переменных окружения или конфиг-функции, не меняя код тестов',
+        'Каждый тест сам случайно выбирает, к какому окружению обращаться',
+        'Использовать глобальную переменную, которую вручную правят перед каждым запуском'
+      ],
+      correct:1,
+      explanation:'Централизованная конфигурация через переменные окружения позволяет прогонять один и тот же код тестов на local/stage/prod-подобных окружениях без единой правки в самих тестах.'
+    }
+  ]
+},
+{
+  id:'stage7', depth:7, title:'Этап 7. CI/CD-интеграция',
+  theory:
+    '<p>В GitHub Actions матрица версий Go/ОС проверяет совместимость, а кэширование модулей ' +
+    '(<code class="inline">actions/setup-go</code> с <code class="inline">cache: true</code>) заметно ускоряет CI. ' +
+    'Build tags (<code class="inline">-tags=integration</code>) разделяют быстрые unit-тесты и тяжёлые ' +
+    'интеграционные, чтобы они не запускались всегда вместе.</p>' +
+    '<p>Принцип fail-fast: джобы <code class="inline">integration</code> и <code class="inline">e2e</code> должны ' +
+    'запускаться только если прошли <code class="inline">unit</code> — это настраивается через ' +
+    '<code class="inline">needs:</code>, чтобы не тратить время на поднятие браузера в CI, если банальный unit-тест ' +
+    'уже красный.</p>' +
+    '<p>Гейт по покрытию (например, через <code class="inline">go-test-coverage</code> action) должен быть осмысленным ' +
+    '— по конкретным пакетам с бизнес-логикой, а не формальным «покрытие всего репозитория 70%», которое легко ' +
+    'обмануть тривиальными тестами на геттерах.</p>' +
+    hl('jobs:\n  unit:\n    runs-on: ubuntu-latest\n    steps:\n      - run: go test -race ./...\n\n  integration:\n    needs: unit\n    runs-on: ubuntu-latest\n    steps:\n      - run: go test -tags=integration ./tests/integration/...\n\n  e2e:\n    needs: [unit, integration]\n    runs-on: ubuntu-latest'),
+  tasks:[
+    {
+      type:'write', id:'stage7-1',
+      prompt:'Допишите фрагмент GitHub Actions workflow (YAML), в котором джоба <code class="inline">integration</code> ' +
+             'зависит от успешного прохождения джобы <code class="inline">unit</code> через ' +
+             '<code class="inline">needs</code>.',
+      checks:[
+        {label:'объявлена джоба integration:', re:/integration:/},
+        {label:'указана зависимость needs: unit', re:/needs:\s*unit/}
+      ],
+      hint:'jobs:\n  unit:\n    runs-on: ubuntu-latest\n    steps:\n      - run: go test -race ./...\n\n  integration:\n    needs: unit\n    runs-on: ubuntu-latest\n    steps:\n      - run: go test -tags=integration ./tests/integration/...'
+    },
+    {
+      type:'choice', id:'stage7-2',
+      prompt:'Зачем в CI разделяют тесты через build tags, например <code class="inline">-tags=integration</code>?',
+      options:[
+        'Чтобы ускорить компиляцию тестового бинарника',
+        'Чтобы отделить быстрые unit-тесты от тяжёлых интеграционных и не запускать их всегда вместе',
+        'Это обязательное требование Go для работы с Docker',
+        'Чтобы тесты автоматически распараллеливались внутри одной джобы'
+      ],
+      correct:1,
+      explanation:'Build tags позволяют держать интеграционные/e2e тесты вне обычного go test ./..., запуская их отдельной стадией — это и есть основа fail-fast пайплайна.'
+    }
+  ]
+},
+{
+  id:'stage8', depth:8, title:'Этап 8. AI в работе тестировщика',
+  theory:
+    '<p>AI-агенты в IDE (Claude Code, Copilot, Cursor) эффективнее всего работают на генерации: table-driven тестов ' +
+    'по сигнатуре функции, моков по интерфейсу, boilerplate тестовых фикстур. AI выдаёт черновик, качество которого ' +
+    'нужно уметь оценить — это ключевой навык, а не сама генерация.</p>' +
+    '<p>MCP (Model Context Protocol) подключает AI-агентов к внешним инструментам — для тестировщика особенно ' +
+    'релевантны Playwright MCP и Chrome DevTools MCP: агент может сам управлять браузером, наблюдать за состоянием ' +
+    'страницы и писать/чинить тесты на основе увиденного.</p>' +
+    '<p>Важно различать «настоящий» self-healing (перестройка модели элементов на основе понимания намерения теста) ' +
+    'и поверхностный (простой перебор запасных локаторов) — от этого зависит, насколько инструменту можно доверять ' +
+    'при масштабировании.</p>' +
+    '<ul><li>Написать сигнатуру функции без реализации</li>' +
+    '<li>Попросить AI сгенерировать table-driven тест с edge cases</li>' +
+    '<li>Вручную проверить, покрыты ли граничные значения и нет ли бессмысленных кейсов</li>' +
+    '<li>Реализовать функцию, прогнать тесты</li></ul>',
+  tasks:[
+    {
+      type:'choice', id:'stage8-1',
+      prompt:'Какой порядок практического воркфлоу при использовании AI-ассистента для написания теста правильный?',
+      options:[
+        'Написать сигнатуру функции → попросить AI сгенерировать table-driven тест с edge cases → вручную проверить покрытие граничных случаев → реализовать функцию → прогнать тесты',
+        'Реализовать функцию → написать все тесты вручную → в конце попросить AI найти в них баги',
+        'Попросить AI сразу написать и функцию, и тесты, без ревью человеком',
+        'Сначала прогнать несуществующие тесты, затем написать функцию, затем спросить у AI, что она делает'
+      ],
+      correct:0,
+      explanation:'Материалы описывают именно такой порядок: сигнатура → AI-черновик теста с edge cases → критическое ревью человеком → реализация → прогон. Это позволяет AI ускорять рутину, но оставляет качество под контролем инженера.'
+    },
+    {
+      type:'choice', id:'stage8-2',
+      prompt:'В чём разница между «настоящим» и поверхностным self-healing в AI-тестовых инструментах?',
+      options:[
+        'Настоящий self-healing перестраивает модель элементов на основе понимания намерения теста, поверхностный — просто перебирает запасные локаторы',
+        'Разницы нет, это два маркетинговых названия одного и того же',
+        'Поверхностный self-healing работает только с Selenium, настоящий — только с Playwright',
+        'Настоящий self-healing вообще не использует локаторы элементов'
+      ],
+      correct:0,
+      explanation:'Это различие определяет, насколько можно доверять инструменту при масштабировании: перебор запасных локаторов ломается при более серьёзных изменениях UI, а понимание намерения теста — более устойчиво.'
+    }
+  ]
+},
+{
+  id:'stage9', depth:9, title:'Этап 9. Финальный проект',
+  theory:
+    '<p>Финальный проект собирается «сам» из накопленного за все этапы кода в одном растущем репозитории — с юнит-, ' +
+    'интеграционными, API- и E2E-тестами, централизованной конфигурацией и CI-пайплайном.</p>' +
+    '<p>Как оценить готовый проект самостоятельно:</p>' +
+    '<ul><li><b>Идиоматичность</b> — проходит ли код golangci-lint без подавленных «для галочки» предупреждений</li>' +
+    '<li><b>Поддерживаемость</b> — сможет ли новый человек добавить тест за 10 минут, следуя структуре и README</li>' +
+    '<li><b>Стабильность</b> — проходят ли все тесты 10 раз подряд без флаки</li>' +
+    '<li><b>Скорость обратной связи</b> — unit-уровень в CI должен занимать секунды, не минуты</li>' +
+    '<li><b>AI-осознанность</b> — можете ли вы объяснить, почему приняли или отклонили конкретный AI-сгенерированный тест</li></ul>' +
+    hl('go test -count=10 -race ./...'),
+  tasks:[
+    {
+      type:'write', id:'stage9-1',
+      prompt:'Напишите команду, которая проверяет стабильность всего репозитория: прогоняет полный набор тестов ' +
+             '10 раз подряд с включённым детектором гонок.',
+      checks:[
+        {label:'команда go test', re:/go\s+test/},
+        {label:'флаг -count=10', re:/-count=10/},
+        {label:'флаг -race', re:/-race/},
+        {label:'все пакеты через ./...', re:/\.\/\.\.\./}
+      ],
+      hint:'go test -count=10 -race ./...'
+    },
+    {
+      type:'choice', id:'stage9-2',
+      prompt:'Какая метрика лучше всего показывает, что архитектура тестового фреймворка достаточно поддерживаема?',
+      options:[
+        'Общее количество строк кода в репозитории',
+        'Время, за которое новый человек в команде может добавить тест, пользуясь только README',
+        'Количество одновременно используемых тестовых фреймворков',
+        'Формальный процент покрытия юнит-тестами, равный 100%'
+      ],
+      correct:1,
+      explanation:'Онбординг-проверка — прямая метрика поддерживаемости: если добавление одного теста новым человеком занимает больше 10–15 минут, структуру репозитория стоит доработать, независимо от процента покрытия.'
+    }
+  ]
+}
+];
+
+var TOTAL_TASKS = TOPICS.reduce(function(sum,t){ return sum + t.tasks.length; }, 0);
+
+/* ============================= STATE ============================= */
+var state = { currentTopic: 0, solved: {} };
+var STORAGE_KEY = 'go-burrow-testing-progress';
+
+async function loadProgress(){
+  try{
+    var res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){
+      var parsed = JSON.parse(res.value);
+      state.solved = parsed.solved || {};
+      if(typeof parsed.currentTopic === 'number') state.currentTopic = parsed.currentTopic;
+    }
+  }catch(e){ /* нет сохранённого прогресса — это нормально для первого визита */ }
+}
+async function saveProgress(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify({solved:state.solved, currentTopic:state.currentTopic}), false);
+  }catch(e){ console.error('storage error', e); }
+}
+
+/* ============================= RENDER ============================= */
+
+function renderRail(){
+  var tunnel = document.getElementById('tunnel');
+  tunnel.innerHTML = '';
+  TOPICS.forEach(function(topic, idx){
+    var solvedCount = topic.tasks.filter(function(t){ return state.solved[t.id]; }).length;
+    var done = solvedCount === topic.tasks.length;
+    var btn = document.createElement('button');
+    btn.className = 'node' + (idx === state.currentTopic ? ' active' : '') + (done ? ' done' : '');
+    btn.innerHTML =
+      '<span class="dot"></span>' +
+      '<span class="depth">Этап ' + topic.depth + '</span>' +
+      '<span class="ttl">' + topic.title.replace(/^Этап \d+\.\s*/,'') + (done ? ' <span class="chk">✓</span>' : '') + '</span>';
+    btn.addEventListener('click', function(){
+      state.currentTopic = idx;
+      saveProgress();
+      renderAll();
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+    tunnel.appendChild(btn);
+  });
+
+  var solvedTotal = Object.keys(state.solved).length;
+  document.getElementById('progressLabel').textContent = solvedTotal + ' / ' + TOTAL_TASKS;
+  document.getElementById('progressBar').style.width = Math.round(100 * solvedTotal / TOTAL_TASKS) + '%';
+}
+
+function checkAnswer(topic, task, container){
+  var feedback = container.querySelector('.feedback');
+  var checklistEl = container.querySelector('.checklist');
+  var val = container.querySelector('textarea.answer').value;
+  var results = task.checks.map(function(c){ return {label:c.label, pass:c.re.test(val)}; });
+  var allPass = results.every(function(r){ return r.pass; });
+
+  checklistEl.innerHTML = results.map(function(r){
+    return '<li class="' + (r.pass ? 'pass' : 'fail') + '">' + (r.pass ? '✓' : '✗') + ' ' + r.label + '</li>';
+  }).join('');
+
+  feedback.className = 'feedback show ' + (allPass ? 'ok' : 'bad');
+  feedback.textContent = allPass
+    ? 'Верно! Все условия задачи выполнены.'
+    : 'Пока не всё сходится — сверьтесь со списком требований ниже.';
+
+  if(allPass){
+    state.solved[task.id] = true;
+    saveProgress();
+    renderRail();
+    container.querySelector('.status-pill').textContent = 'решено';
+    container.querySelector('.status-pill').classList.add('solved');
+  }
+}
+
+function checkChoice(topic, task, container, pickedIdx){
+  var opts = container.querySelectorAll('.choice-opt');
+  opts.forEach(function(el, i){
+    el.classList.remove('correct','wrong','picked');
+    if(i === pickedIdx) el.classList.add('picked');
+  });
+  var correct = pickedIdx === task.correct;
+  opts[task.correct].classList.add('correct');
+  if(!correct) opts[pickedIdx].classList.add('wrong');
+
+  var feedback = container.querySelector('.feedback');
+  feedback.className = 'feedback show ' + (correct ? 'ok' : 'bad');
+  feedback.textContent = (correct ? 'Верно. ' : 'Не совсем. ') + task.explanation;
+
+  if(correct){
+    state.solved[task.id] = true;
+    saveProgress();
+    renderRail();
+    container.querySelector('.status-pill').textContent = 'решено';
+    container.querySelector('.status-pill').classList.add('solved');
+  }
+}
+
+function looksLikeCode(s){
+  return /[\{\}\(\);]|:=|func\s/.test(s);
+}
+
+function renderTaskCard(topic, task, num){
+  var wrap = document.createElement('div');
+  wrap.className = 'task-card';
+  var solved = !!state.solved[task.id];
+
+  wrap.innerHTML =
+    '<div class="task-head">' +
+      '<span class="task-label">Задача ' + num + '</span>' +
+      '<span class="status-pill' + (solved ? ' solved' : '') + '">' + (solved ? 'решено' : 'не решено') + '</span>' +
+    '</div>' +
+    '<div class="task-prompt">' + task.prompt + '</div>';
+
+  if(task.type === 'write'){
+    var ta = document.createElement('textarea');
+    ta.className = 'answer';
+    ta.placeholder = '// напишите код здесь';
+    wrap.appendChild(ta);
+
+    var actions = document.createElement('div');
+    actions.className = 'row-actions';
+    var checkBtn = document.createElement('button');
+    checkBtn.className = 'btn';
+    checkBtn.textContent = 'Проверить';
+    var hintBtn = document.createElement('button');
+    hintBtn.className = 'btn ghost';
+    hintBtn.textContent = 'Показать подсказку';
+    actions.appendChild(checkBtn);
+    actions.appendChild(hintBtn);
+    wrap.appendChild(actions);
+
+    var checklist = document.createElement('ul');
+    checklist.className = 'checklist';
+    wrap.appendChild(checklist);
+
+    var feedback = document.createElement('div');
+    feedback.className = 'feedback';
+    wrap.appendChild(feedback);
+
+    var hintBox = document.createElement('pre');
+    hintBox.className = 'code';
+    hintBox.style.display = 'none';
+    hintBox.style.marginTop = '10px';
+    hintBox.innerHTML = hl(task.hint);
+    wrap.appendChild(hintBox);
+
+    checkBtn.addEventListener('click', function(){ checkAnswer(topic, task, wrap); });
+    hintBtn.addEventListener('click', function(){
+      hintBox.style.display = hintBox.style.display === 'none' ? 'block' : 'none';
+    });
+  } else if(task.type === 'choice'){
+    var list = document.createElement('div');
+    list.className = 'choice-list';
+    task.options.forEach(function(opt, i){
+      var optEl = document.createElement('label');
+      optEl.className = 'choice-opt';
+      var body = looksLikeCode(opt) ? '<pre>' + hl(opt) + '</pre>' : '<span class="plain">' + esc(opt) + '</span>';
+      optEl.innerHTML = '<input type="radio" name="' + task.id + '">' + body;
+      optEl.addEventListener('click', function(){
+        checkChoice(topic, task, wrap, i);
+      });
+      list.appendChild(optEl);
+    });
+    wrap.appendChild(list);
+
+    var feedback2 = document.createElement('div');
+    feedback2.className = 'feedback';
+    wrap.appendChild(feedback2);
+  }
+
+  return wrap;
+}
+
+function renderMain(){
+  var topic = TOPICS[state.currentTopic];
+  document.getElementById('topicTitle').textContent = topic.title;
+  document.getElementById('depthTag').textContent = 'ЭТАП ' + topic.depth;
+  document.getElementById('theoryBody').innerHTML = topic.theory;
+
+  var host = document.getElementById('tasksHost');
+  host.innerHTML = '';
+  var card = document.createElement('section');
+  card.className = 'card';
+  card.innerHTML = '<h2><i class="bar"></i>Практика</h2>';
+  topic.tasks.forEach(function(task, i){
+    card.appendChild(renderTaskCard(topic, task, i+1));
+  });
+  host.appendChild(card);
+
+  document.getElementById('prevBtn').disabled = state.currentTopic === 0;
+  document.getElementById('prevBtn').style.opacity = state.currentTopic === 0 ? 0.4 : 1;
+  document.getElementById('nextBtn').disabled = state.currentTopic === TOPICS.length - 1;
+  document.getElementById('nextBtn').style.opacity = state.currentTopic === TOPICS.length - 1 ? 0.4 : 1;
+}
+
+function renderAll(){
+  renderRail();
+  renderMain();
+}
+
+document.getElementById('prevBtn').addEventListener('click', function(){
+  if(state.currentTopic > 0){
+    state.currentTopic--;
+    saveProgress();
+    renderAll();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+});
+document.getElementById('nextBtn').addEventListener('click', function(){
+  if(state.currentTopic < TOPICS.length - 1){
+    state.currentTopic++;
+    saveProgress();
+    renderAll();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+});
+document.getElementById('resetBtn').addEventListener('click', function(){
+  if(confirm('Сбросить весь прогресс?')){
+    state.solved = {};
+    saveProgress();
+    renderAll();
+  }
+});
+
+(async function init(){
+  await loadProgress();
+  renderAll();
+})();
+</script>
+</body>
+</html>

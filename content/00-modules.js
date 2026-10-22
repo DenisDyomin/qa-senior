@@ -21,6 +21,11 @@ QA.defineModule({ id: 'm6', code: 'M6', priority: 'P0', title: 'SQL и данн�
 
 QA.defineModule({ id: 'm7', code: 'M7', priority: 'P0', title: 'CI/CD и quality gates',
   summary: 'Пайплайн как продукт QA: стадии, гейты, тестовые данные, окружения, DORA-метрики.',
+  intro: `
+Git — рабочая основа CI/CD и повседневной работы QA. Команды можно отработать в
+**[интерактивном тренажёре команд Git](public/git/index.html)** (открывается в новой вкладке):
+92 ситуации от базовых команд до rebase, reflog, bisect и разрешения конфликтов, с фильтром по уровням.
+`,
   tracks: ['sdet'] });
 
 QA.defineModule({ id: 'm8', code: 'M8', priority: 'P0', title: 'Тестирование производительности',
