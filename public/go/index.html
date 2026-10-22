@@ -848,6 +848,127 @@ var TOPICS = [
   ]
 },
 {
+  id:'stage2b', depth:2, title:'Этап 2.2. TestMain, setup/teardown и t.Cleanup',
+  theory:
+    '<p>Если всему пакету нужна общая подготовка (поднять тестовую БД, прогреть кэш) — её делают в ' +
+    '<code class="inline">func TestMain(m *testing.M)</code>: setup, затем ' +
+    '<code class="inline">code := m.Run()</code>, teardown и <code class="inline">os.Exit(code)</code>. Без ' +
+    'вызова <code class="inline">m.Run()</code> тесты пакета не запустятся.</p>' +
+    '<p>Для уборки на уровне отдельного теста лучше <code class="inline">t.Cleanup(func(){ ... })</code>, а не ' +
+    '<code class="inline">defer</code> в хелпере: Cleanup-функции выполняются после завершения теста (в т.ч. при ' +
+    'падении), в порядке LIFO, и работают даже если вызваны из вспомогательной функции, из которой ' +
+    '<code class="inline">defer</code> уже вышел.</p>' +
+    '<p>Вспомогательные функции помечают <code class="inline">t.Helper()</code> — тогда в отчёте об ошибке ' +
+    'указывается строка вызова хелпера, а не его внутренностей. Так строят читаемые фикстуры: ' +
+    '<code class="inline">newTestUser(t)</code> создаёт объект и сам регистрирует его очистку.</p>' +
+    hl('func TestMain(m *testing.M) {\n' +
+       '    setup()            // поднять общий ресурс\n' +
+       '    code := m.Run()    // прогнать тесты пакета\n' +
+       '    teardown()         // освободить\n' +
+       '    os.Exit(code)\n' +
+       '}\n\n' +
+       'func newTestUser(t *testing.T) *User {\n' +
+       '    t.Helper()\n' +
+       '    u := createUser()\n' +
+       '    t.Cleanup(func() { deleteUser(u) }) // уберётся после теста\n' +
+       '    return u\n' +
+       '}'),
+  tasks:[
+    {
+      type:'write', id:'stage2b-1',
+      prompt:'Напишите <code class="inline">TestMain(m *testing.M)</code>: выполните подготовку, запустите тесты ' +
+             'через <code class="inline">m.Run()</code> и завершите процесс с полученным кодом через ' +
+             '<code class="inline">os.Exit</code>.',
+      checks:[
+        {label:'сигнатура func TestMain(m *testing.M)', re:/func\s+TestMain\(m\s+\*testing\.M\)/},
+        {label:'запуск тестов через m.Run()', re:/m\.Run\(\)/},
+        {label:'завершение через os.Exit(', re:/os\.Exit\(/}
+      ],
+      hint:'func TestMain(m *testing.M) {\n    setup()\n    code := m.Run()\n    teardown()\n    os.Exit(code)\n}'
+    },
+    {
+      type:'write', id:'stage2b-2',
+      prompt:'Напишите фикстуру-хелпер <code class="inline">newTestUser(t *testing.T) *User</code>: пометьте её ' +
+             '<code class="inline">t.Helper()</code> и зарегистрируйте уборку через ' +
+             '<code class="inline">t.Cleanup</code>.',
+      checks:[
+        {label:'пометка вспомогательной функции t.Helper()', re:/t\.Helper\(\)/},
+        {label:'регистрация уборки t.Cleanup(', re:/t\.Cleanup\(/}
+      ],
+      hint:'func newTestUser(t *testing.T) *User {\n    t.Helper()\n    u := createUser()\n    t.Cleanup(func() { deleteUser(u) })\n    return u\n}'
+    },
+    {
+      type:'choice', id:'stage2b-3',
+      prompt:'Чем <code class="inline">t.Cleanup</code> в хелпере лучше, чем <code class="inline">defer</code>?',
+      options:[
+        'Он выполняется быстрее',
+        'Он сработает после завершения теста (в т.ч. при падении), даже если вызван из хелпера, из которого defer уже вышел',
+        'Он не требует указателя *testing.T',
+        'Разницы нет'
+      ],
+      correct:1,
+      explanation:'defer в хелпере отработает при выходе из самого хелпера, а не теста. t.Cleanup откладывает уборку до конца теста (LIFO), срабатывает и при падении — именно это нужно для фикстур.'
+    }
+  ]
+},
+{
+  id:'stage2c', depth:2, title:'Этап 2.3. Покрытие (-cover) и детектор гонок (-race)',
+  theory:
+    '<p>Покрытие измеряют флагом <code class="inline">go test -cover</code>; для отчёта — ' +
+    '<code class="inline">-coverprofile=cover.out</code> и затем <code class="inline">go tool cover ' +
+    '-html=cover.out</code>, который подсветит непокрытые строки. Важно: покрытие — это сигнал, а не цель. ' +
+    '100% покрытия не означает хорошие тесты (строка выполнена ≠ поведение проверено).</p>' +
+    '<p>Детектор гонок <code class="inline">go test -race</code> находит состязания за данные во время ' +
+    'выполнения. При параллельных тестах (<code class="inline">t.Parallel()</code>) он обязателен на CI: без него ' +
+    'гонка может годами не проявляться и всплыть в проде.</p>' +
+    '<p>Полезные флаги: <code class="inline">-run</code> (regex по именам тестов/подтестов), ' +
+    '<code class="inline">-count=1</code> (отключить кэш результатов и прогнать заново), ' +
+    '<code class="inline">-v</code> (подробный вывод), <code class="inline">-timeout</code> (ограничить время), ' +
+    '<code class="inline">-shuffle=on</code> (случайный порядок — ловит скрытые зависимости между тестами).</p>' +
+    hl('go test ./... -race -coverprofile=cover.out\n' +
+       'go tool cover -html=cover.out        # отчёт по покрытию\n' +
+       'go test -run TestAdd/negative -v     # один подтест\n' +
+       'go test -count=1 ./...               # без кэша'),
+  tasks:[
+    {
+      type:'choice', id:'stage2c-1',
+      prompt:'Что делает флаг <code class="inline">-race</code> у go test?',
+      options:[
+        'Запускает тесты в случайном порядке',
+        'Находит состязания за данные (data races) во время выполнения',
+        'Ускоряет выполнение тестов',
+        'Показывает покрытие кода'
+      ],
+      correct:1,
+      explanation:'-race включает детектор гонок: инструментирует доступ к памяти и сообщает о небезопасном одновременном доступе из разных горутин. Обязателен при параллельных тестах.'
+    },
+    {
+      type:'choice', id:'stage2c-2',
+      prompt:'Как посмотреть покрытие в виде наглядного HTML с подсветкой строк?',
+      options:[
+        'go test -cover -html',
+        'go tool cover -html=cover.out (после -coverprofile=cover.out)',
+        'go coverage report',
+        'go test -v'
+      ],
+      correct:1,
+      explanation:'Сначала собирают профиль: go test -coverprofile=cover.out, затем go tool cover -html=cover.out открывает отчёт с подсветкой покрытых/непокрытых строк.'
+    },
+    {
+      type:'choice', id:'stage2c-3',
+      prompt:'Зачем нужен флаг <code class="inline">-count=1</code>?',
+      options:[
+        'Запустить тест ровно один раз из многих',
+        'Отключить кэширование результатов тестов и прогнать их заново',
+        'Ограничить число горутин',
+        'Включить подробный вывод'
+      ],
+      correct:1,
+      explanation:'go кэширует успешные результаты тестов. -count=1 — идиоматичный способ заставить прогнать тесты заново, игнорируя кэш (например, если тест зависит от внешнего состояния).'
+    }
+  ]
+},
+{
   id:'stage2d', depth:2, title:'Этап 2.4. Бенчмарки (testing.B) и профилирование pprof',
   theory:
     '<p>Бенчмарк — функция <code class="inline">func BenchmarkXxx(b *testing.B)</code> с циклом ' +
@@ -1069,6 +1190,67 @@ var TOPICS = [
       ],
       correct:1,
       explanation:'require — аналог t.Fatalf: если проверка провалилась, тест прерывается сразу. assert отмечает провал через t.Errorf, но выполнение продолжается — удобно, чтобы увидеть сразу несколько независимых несостыковок.'
+    }
+  ]
+},
+{
+  id:'stage3d', depth:3, title:'Этап 3.2. Моки: gomock и mockgen',
+  theory:
+    '<p>Ручные дублёры (см. тему про интерфейсы) хороши для простых случаев. Когда у интерфейса много методов или ' +
+    'нужно строго проверять порядок и аргументы вызовов, берут генерируемые моки — ' +
+    '<code class="inline">gomock</code> (go.uber.org/mock) с генератором <code class="inline">mockgen</code>.</p>' +
+    '<p><code class="inline">mockgen</code> по интерфейсу генерирует тип <code class="inline">MockXxx</code> ' +
+    '(обычно через директиву <code class="inline">//go:generate mockgen ...</code>). В тесте создают контроллер ' +
+    '<code class="inline">ctrl := gomock.NewController(t)</code>, затем мок и задают ожидания: ' +
+    '<code class="inline">m.EXPECT().Charge(gomock.Any()).Return(nil)</code>.</p>' +
+    '<p><code class="inline">gomock.Any()</code> совпадает с любым аргументом; можно задавать конкретные значения и ' +
+    'число вызовов (<code class="inline">.Times(1)</code>). Начиная с Go 1.14 контроллер сам проверяет ожидания ' +
+    'в конце теста через <code class="inline">t.Cleanup</code>, явный <code class="inline">ctrl.Finish()</code> уже ' +
+    'не нужен. Альтернатива gomock — <code class="inline">testify/mock</code>.</p>' +
+    hl('ctrl := gomock.NewController(t)\n' +
+       'm := NewMockPaymentGateway(ctrl)\n\n' +
+       'm.EXPECT().\n' +
+       '    Charge(gomock.Any()).\n' +
+       '    Return(nil).\n' +
+       '    Times(1)\n\n' +
+       'svc := NewCheckout(m)\n' +
+       'err := svc.Pay(100)'),
+  tasks:[
+    {
+      type:'write', id:'stage3d-1',
+      prompt:'Настройте gomock: создайте контроллер <code class="inline">gomock.NewController(t)</code>, мок ' +
+             '<code class="inline">NewMockPaymentGateway(ctrl)</code> и задайте ожидание вызова ' +
+             '<code class="inline">Charge</code> с любым аргументом, возвращающее nil.',
+      checks:[
+        {label:'контроллер gomock.NewController(t)', re:/gomock\.NewController\(t\)/},
+        {label:'ожидание через .EXPECT()', re:/\.EXPECT\(\)/},
+        {label:'возврат заданного значения .Return(', re:/\.Return\(/}
+      ],
+      hint:'ctrl := gomock.NewController(t)\nm := NewMockPaymentGateway(ctrl)\nm.EXPECT().Charge(gomock.Any()).Return(nil)'
+    },
+    {
+      type:'choice', id:'stage3d-2',
+      prompt:'Что делает <code class="inline">mockgen</code>?',
+      options:[
+        'Запускает тесты параллельно',
+        'Генерирует реализацию-мок по интерфейсу',
+        'Проверяет покрытие кода',
+        'Поднимает контейнер с БД'
+      ],
+      correct:1,
+      explanation:'mockgen по описанию интерфейса генерирует тип MockXxx с методами EXPECT() — готовый управляемый мок, который не надо писать руками.'
+    },
+    {
+      type:'choice', id:'stage3d-3',
+      prompt:'Что означает <code class="inline">gomock.Any()</code> в ожидании?',
+      options:[
+        'Вызов не должен произойти',
+        'Аргумент может быть любым — матчер совпадёт с любым значением',
+        'Метод вызывается ровно один раз',
+        'Возвращается nil'
+      ],
+      correct:1,
+      explanation:'gomock.Any() — матчер, принимающий любое значение аргумента. Для строгой проверки вместо него подставляют конкретное значение или свой матчер.'
     }
   ]
 },
@@ -1560,6 +1742,66 @@ var TOPICS = [
   ]
 },
 {
+  id:'stage6a', depth:6, title:'Этап 6.1. Слои фреймворка: конфиг, DI, Page Object, data builders',
+  theory:
+    '<p>Хороший автотест-фреймворк разделён на слои: конфигурация (env/флаги), клиенты и обёртки над API/UI, ' +
+    'доменные хелперы и сами тесты. Зависимости прокидывают через конструкторы (DI), а не через глобальные ' +
+    'переменные — иначе параллельные тесты мешают друг другу и зависимости становятся неявными.</p>' +
+    '<p><b>Data builder</b> — паттерн для тестовых данных: <code class="inline">NewUserBuilder().WithName("Аня")' +
+    '.Build()</code>. Методы-сеттеры возвращают сам билдер (fluent-интерфейс), а <code class="inline">Build()</code> ' +
+    'отдаёт готовый объект с разумными значениями по умолчанию. Это убирает из тестов шум построения данных.</p>' +
+    '<p><b>Page Object</b> (для UI): локаторы и действия страницы инкапсулированы в тип, тест работает с методами ' +
+    '(<code class="inline">loginPage.Login(user, pass)</code>), а не с селекторами. При изменении вёрстки правят ' +
+    'один Page Object, а не десятки тестов — это и есть низкая стоимость владения.</p>' +
+    hl('type UserBuilder struct{ u User }\n\n' +
+       'func NewUserBuilder() *UserBuilder {\n' +
+       '    return &UserBuilder{u: User{Name: "default", Age: 30}}\n' +
+       '}\n' +
+       'func (b *UserBuilder) WithName(n string) *UserBuilder {\n' +
+       '    b.u.Name = n\n' +
+       '    return b // fluent: позволяет цепочку вызовов\n' +
+       '}\n' +
+       'func (b *UserBuilder) Build() User { return b.u }'),
+  tasks:[
+    {
+      type:'write', id:'stage6a-1',
+      prompt:'Реализуйте data builder: метод <code class="inline">WithName</code> у ' +
+             '<code class="inline">*UserBuilder</code>, который задаёт имя и возвращает сам билдер (для цепочки), ' +
+             'и метод <code class="inline">Build()</code>, возвращающий готовый <code class="inline">User</code>.',
+      checks:[
+        {label:'метод WithName у *UserBuilder', re:/func\s*\([^)]*\*UserBuilder\)\s*WithName\(/},
+        {label:'возврат билдера для цепочки (return b)', re:/return\s+b\b/},
+        {label:'метод Build()', re:/func\s*\([^)]*\*UserBuilder\)\s*Build\(\)/}
+      ],
+      hint:'func (b *UserBuilder) WithName(n string) *UserBuilder {\n    b.u.Name = n\n    return b\n}\n\nfunc (b *UserBuilder) Build() User {\n    return b.u\n}'
+    },
+    {
+      type:'choice', id:'stage6a-2',
+      prompt:'Зачем в UI-тестах паттерн Page Object?',
+      options:[
+        'Чтобы ускорить загрузку страниц',
+        'Чтобы инкапсулировать локаторы и действия: при изменении вёрстки правится один объект, а не все тесты',
+        'Чтобы тесты работали без браузера',
+        'Это требование линтера'
+      ],
+      correct:1,
+      explanation:'Page Object прячет селекторы и взаимодействия за методами. Тесты оперируют действиями, а правки вёрстки локализуются в одном месте — меньше хрупкости и стоимость владения ниже.'
+    },
+    {
+      type:'choice', id:'stage6a-3',
+      prompt:'Почему зависимости лучше прокидывать через конструкторы (DI), а не через глобальные переменные?',
+      options:[
+        'Глобальные переменные не компилируются в Go',
+        'DI делает зависимости явными и изолирует тесты — глобальное состояние ломает параллельный прогон',
+        'DI работает быстрее в рантайме',
+        'Так требует стандартная библиотека'
+      ],
+      correct:1,
+      explanation:'Явные зависимости через конструктор проще подменить в тесте и не создают общего изменяемого состояния, из-за которого параллельные тесты влияют друг на друга.'
+    }
+  ]
+},
+{
   id:'stage7', depth:7, title:'Этап 7. CI/CD-интеграция',
   theory:
     '<p>В GitHub Actions матрица версий Go/ОС проверяет совместимость, а кэширование модулей ' +
@@ -1597,6 +1839,67 @@ var TOPICS = [
       ],
       correct:1,
       explanation:'Build tags позволяют держать интеграционные/e2e тесты вне обычного go test ./..., запуская их отдельной стадией — это и есть основа fail-fast пайплайна.'
+    }
+  ]
+},
+{
+  id:'stage7a', depth:7, title:'Этап 7.1. Линтеры, кэш и матрицы в CI',
+  theory:
+    '<p>На CI, кроме тестов, гоняют статические проверки. <code class="inline">go vet</code> ловит ' +
+    'подозрительные конструкции, <code class="inline">gofmt</code>/<code class="inline">goimports</code> — ' +
+    'форматирование, а <code class="inline">golangci-lint</code> — агрегатор десятков линтеров (errcheck, ' +
+    'staticcheck, ineffassign и др.) с единым конфигом. Это дешёвый и быстрый гейт качества.</p>' +
+    '<p>Скорость обеспечивают кэши: модулей (<code class="inline">~/go/pkg/mod</code>) и build-кэш ' +
+    '(<code class="inline">~/.cache/go-build</code>). На GitHub Actions это делает ' +
+    '<code class="inline">actions/setup-go</code> с <code class="inline">cache: true</code> — пересборка и тесты ' +
+    'идут в разы быстрее.</p>' +
+    '<p>Матрица версий (<code class="inline">strategy.matrix.go: [1.22, 1.23]</code>) проверяет совместимость с ' +
+    'несколькими версиями Go. Тесты запускают как <code class="inline">go test ./... -race ' +
+    '-coverprofile=cover.out</code>, а <code class="inline">-shuffle=on</code> помогает выявить скрытые ' +
+    'зависимости между тестами.</p>' +
+    hl('# .github/workflows/ci.yml (фрагмент)\n' +
+       '- uses: actions/setup-go@v5\n' +
+       '  with:\n' +
+       '    go-version: "1.23"\n' +
+       '    cache: true\n' +
+       '- run: go vet ./...\n' +
+       '- run: golangci-lint run\n' +
+       '- run: go test ./... -race -coverprofile=cover.out'),
+  tasks:[
+    {
+      type:'choice', id:'stage7a-1',
+      prompt:'Что такое <code class="inline">golangci-lint</code>?',
+      options:[
+        'Форматировщик кода, замена gofmt',
+        'Агрегатор множества линтеров с единым конфигом и быстрым запуском',
+        'Система сборки Go-проектов',
+        'Детектор гонок данных'
+      ],
+      correct:1,
+      explanation:'golangci-lint запускает набор линтеров (staticcheck, errcheck, ineffassign и др.) за один проход с общим конфигом — удобный гейт качества на CI.'
+    },
+    {
+      type:'choice', id:'stage7a-2',
+      prompt:'Зачем на CI кэшировать модули и build-кэш Go?',
+      options:[
+        'Чтобы тесты стали стабильнее',
+        'Чтобы не скачивать зависимости и не пересобирать всё заново каждый запуск — прогон идёт быстрее',
+        'Чтобы увеличить покрытие',
+        'Это требование go vet'
+      ],
+      correct:1,
+      explanation:'Кэш модулей (go/pkg/mod) и build-кэш (.cache/go-build) переиспользуются между запусками, резко сокращая время сборки и тестов на CI.'
+    },
+    {
+      type:'write', id:'stage7a-3',
+      prompt:'Напишите команду, которая прогоняет все тесты проекта с детектором гонок и сбором покрытия в файл ' +
+             '<code class="inline">cover.out</code>.',
+      checks:[
+        {label:'запуск всех пакетов go test ./...', re:/go\s+test\s+\.\/\.\.\./},
+        {label:'с детектором гонок -race', re:/-race/},
+        {label:'со сбором покрытия -coverprofile', re:/-coverprofile(=|\s)cover\.out/}
+      ],
+      hint:'go test ./... -race -coverprofile=cover.out'
     }
   ]
 },
