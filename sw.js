@@ -1,7 +1,14 @@
 /* QA-тренажёр service worker: офлайн через runtime-кэш. */
 const CACHE = 'qa-senior-v2';
 self.addEventListener('install', (e) => { self.skipWaiting(); });
-self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    // Удаляем кэши прошлых версий, чтобы не копить мусор и не отдавать старьё.
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;

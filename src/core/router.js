@@ -18,13 +18,17 @@
     return h || '/';
   };
 
+  function decode(v) {
+    try { return decodeURIComponent(v); } catch (e) { return v; }
+  }
+
   function resolve() {
     const path = QA.currentPath();
     for (const r of routes) {
       const m = r.rx.exec(path);
       if (m) {
         const params = {};
-        r.names.forEach((n, i) => (params[n] = decodeURIComponent(m[i + 1])));
+        r.names.forEach((n, i) => (params[n] = decode(m[i + 1])));
         return r.handler(params);
       }
     }

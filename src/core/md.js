@@ -3,7 +3,11 @@
   const QA = (window.QA = window.QA || {});
 
   function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function inline(s) {
@@ -14,11 +18,18 @@
       if (/-t\d+$/.test(id)) { const t = g && g.topic(id); return '<a href="#/topic/' + id + '">' + esc(t ? t.title : id) + '</a>'; }
       const k = g && g.task(id); return '<a href="#/task/' + id + '">' + esc(k ? k.title : id) + '</a>';
     });
-    out = out.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+    /* Код-спаны выносим в заглушки, чтобы дальнейшая inline-разметка
+       (**, *, ссылки) не применялась к их содержимому. */
+    const codes = [];
+    out = out.replace(/`([^`]+)`/g, (_, c) => {
+      codes.push('<code>' + c + '</code>');
+      return '\u0000' + (codes.length - 1) + '\u0000';
+    });
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     out = out.replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>');
     out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     out = out.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+    out = out.replace(/\u0000(\d+)\u0000/g, (_, n) => codes[+n]);
     return out;
   }
 

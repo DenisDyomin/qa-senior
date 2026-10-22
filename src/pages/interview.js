@@ -206,12 +206,17 @@
 
   function renderReport() {
     const ui = QA.ui;
-    const total = session.results.length;
-    const ok = session.results.filter((r) => r.grade === 'ok').length;
-    const weak = session.results.filter((r) => r.grade !== 'ok');
+    const answered = session.results;
+    const ok = answered.filter((r) => r.grade === 'ok').length;
+    const answeredSet = {};
+    answered.forEach((r) => (answeredSet[r.q.id] = true));
+    // В экзамене неотвеченные (из-за истёкшего таймера) тоже считаются пробелом.
+    const unanswered = session.exam ? session.list.filter((q) => !answeredSet[q.id]) : [];
+    const total = session.exam ? session.list.length : answered.length;
+    const weak = answered.filter((r) => r.grade !== 'ok').map((r) => r.q).concat(unanswered);
     const byModule = {};
-    weak.forEach((r) => {
-      const m = QA.get.module(r.q.moduleId);
+    weak.forEach((q) => {
+      const m = QA.get.module(q.moduleId);
       const key = m ? m.code + ' · ' + m.title : 'Прочее';
       byModule[key] = (byModule[key] || 0) + 1;
     });
@@ -226,7 +231,7 @@
 
     const list = weak.length
       ? '<ul class="task-list">' +
-        weak.map((r) => '<li><a href="' + (r.q.topicId ? '#/topic/' + r.q.topicId : '#/module/' + r.q.moduleId) + '"><span class="tt">' + ui.esc(r.q.question) + '</span></a></li>').join('') +
+        weak.map((q) => '<li><a href="' + (q.topicId ? '#/topic/' + q.topicId : '#/module/' + q.moduleId) + '"><span class="tt">' + ui.esc(q.question) + '</span></a></li>').join('') +
         '</ul>'
       : '';
 

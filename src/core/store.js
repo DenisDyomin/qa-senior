@@ -10,10 +10,22 @@
     settings: { theme: 'dark' }, updatedAt: null,
   });
 
+  /* Привести прочитанный/импортированный объект к актуальной схеме,
+     чтобы отсутствующие или битые контейнеры не ломали работу. */
+  function normalize(parsed) {
+    const s = Object.assign(empty(), parsed || {});
+    ['topics', 'tasks', 'questions', 'reviews'].forEach((k) => {
+      if (!s[k] || typeof s[k] !== 'object' || Array.isArray(s[k])) s[k] = {};
+    });
+    if (!Array.isArray(s.exams)) s.exams = [];
+    s.settings = Object.assign({ theme: 'dark' }, (parsed && parsed.settings) || {});
+    return s;
+  }
+
   let state = empty();
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) state = Object.assign(empty(), JSON.parse(raw));
+    if (raw) state = normalize(JSON.parse(raw));
   } catch (e) {
     console.warn('Прогресс не прочитан:', e);
   }
@@ -43,7 +55,7 @@
       const prev = state.reviews[id] || { box: 1 };
       let box = prev.box || 1;
       if (grade === 'ok') box = Math.min(5, box + 1);
-      else if (grade === 'weak') box = Math.max(1, box);
+      else if (grade === 'weak') box = Math.max(1, box - 1);
       else box = 1;
       const days = BOX_DAYS[box] || 1;
       state.reviews[id] = { box: box, due: Date.now() + days * DAY, last: Date.now() };
@@ -58,7 +70,9 @@
       this.dueReviewIds().forEach((id) => (set[id] = true));
       return QA.data.questions.filter((q) => set[q.id]);
     },
-    dueCount() { return this.dueReviewIds().length; },
+    /* Считаем только существующие вопросы, чтобы «висячие» id из старого
+       прогресса не расходились с кнопкой «Повторить». */
+    dueCount() { return this.dueReviewQuestions().length; },
 
     /* История экзаменов */
     recordExam(exam) {
@@ -77,7 +91,7 @@
     import(json) {
       const parsed = JSON.parse(json);
       if (!parsed || typeof parsed !== 'object') throw new Error('Некорректный файл прогресса');
-      state = Object.assign(empty(), parsed);
+      state = normalize(parsed);
       save();
     },
     stats(moduleId) {

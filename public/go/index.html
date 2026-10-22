@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GoBurrow — Go для автоматизации тестирования</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0F1416;
@@ -1995,18 +1993,18 @@ var STORAGE_KEY = 'go-burrow-testing-progress';
 
 async function loadProgress(){
   try{
-    var res = await window.storage.get(STORAGE_KEY, false);
-    if(res && res.value){
-      var parsed = JSON.parse(res.value);
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      var parsed = JSON.parse(raw);
       state.solved = parsed.solved || {};
       if(typeof parsed.currentTopic === 'number') state.currentTopic = parsed.currentTopic;
     }
-  }catch(e){ /* нет сохранённого прогресса — это нормально для первого визита */ }
+  }catch(e){ /* нет прогресса или localStorage недоступен — нормально */ }
 }
 async function saveProgress(){
   try{
-    await window.storage.set(STORAGE_KEY, JSON.stringify({solved:state.solved, currentTopic:state.currentTopic}), false);
-  }catch(e){ console.error('storage error', e); }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({solved:state.solved, currentTopic:state.currentTopic}));
+  }catch(e){}
 }
 
 /* ============================= RENDER ============================= */
