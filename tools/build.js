@@ -53,6 +53,38 @@ if (!rx.test(html)) {
 html = html.replace(rx, start + '\n' + tags + '\n' + end);
 fs.writeFileSync(indexPath, html);
 
+/* --- обновление precache-списка в sw.js --- */
+const swPath = path.join(root, 'sw.js');
+if (fs.existsSync(swPath)) {
+  const walk = (dir) => {
+    let acc = [];
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) acc = acc.concat(walk(full));
+      else if (name.endsWith('.js')) acc.push('./' + path.relative(root, full).split(path.sep).join('/'));
+    }
+    return acc;
+  };
+  const urls = ['./', './index.html', './styles.css', './manifest.webmanifest',
+    './icon-180.png', './icon-192.png', './icon-512.png']
+    .concat(walk(path.join(root, 'src')))
+    .concat(files.map((f) => './content/' + f));
+  ['vendor/sql-wasm.js', 'vendor/sql-wasm.wasm', 'public/go/index.html', 'public/git/index.html']
+    .forEach((p) => { if (fs.existsSync(path.join(root, p))) urls.push('./' + p); });
+
+  let sw = fs.readFileSync(swPath, 'utf8');
+  const sStart = '/* PRECACHE:START */';
+  const sEnd = '/* PRECACHE:END */';
+  const swrx = new RegExp(sStart.replace(/[*/]/g, '\\$&') + '[\\s\\S]*?' + sEnd.replace(/[*/]/g, '\\$&'));
+  if (swrx.test(sw)) {
+    sw = sw.replace(swrx, sStart + '\nconst PRECACHE = ' + JSON.stringify(urls, null, 2) + ';\n' + sEnd);
+    fs.writeFileSync(swPath, sw);
+    console.log('sw.js: precache-список обновлён (' + urls.length + ' файлов).');
+  } else {
+    console.warn('sw.js: маркеры PRECACHE не найдены — список не обновлён.');
+  }
+}
+
 const byModule = {};
 data.topics.forEach((t) => ((byModule[t.moduleId] = byModule[t.moduleId] || { t: 0, q: 0 }).t++));
 data.tasks.forEach((t) => ((byModule[t.moduleId] = byModule[t.moduleId] || { t: 0, q: 0 }).q++));
