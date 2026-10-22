@@ -667,6 +667,76 @@ var TOPICS = [
   ]
 },
 {
+  id:'stage1g', depth:1, title:'Этап 1.7. Синхронизация: Mutex, atomic, WaitGroup, errgroup',
+  theory:
+    '<p>Когда тесты или тестовые дублёры работают с общим состоянием из нескольких горутин, нужна синхронизация, ' +
+    'иначе <code class="inline">go test -race</code> справедливо покажет гонку. Базовый инструмент — ' +
+    '<code class="inline">sync.Mutex</code> (и <code class="inline">sync.RWMutex</code>, когда читателей много, ' +
+    'а писателей мало): захват через <code class="inline">Lock()</code> и обязательный ' +
+    '<code class="inline">defer Unlock()</code>.</p>' +
+    '<p>Для простых счётчиков дешевле <code class="inline">sync/atomic</code> ' +
+    '(<code class="inline">atomic.AddInt64</code>, <code class="inline">atomic.LoadInt64</code>) — без блокировок. ' +
+    '<code class="inline">sync.Once</code> гарантирует одноразовую инициализацию (например, общий тестовый ресурс), ' +
+    'а <code class="inline">sync.WaitGroup</code> ждёт завершения пачки горутин.</p>' +
+    '<p>Для параллельных проверок удобен <code class="inline">errgroup.Group</code> (из ' +
+    '<code class="inline">golang.org/x/sync/errgroup</code>): запускает горутины, собирает первую ошибку и умеет ' +
+    'отменять остальные через контекст. Это чище ручной связки WaitGroup + канал ошибок.</p>' +
+    hl('type SpyCounter struct {\n' +
+       '    mu    sync.Mutex\n' +
+       '    calls int\n' +
+       '}\n\n' +
+       'func (c *SpyCounter) Inc() {\n' +
+       '    c.mu.Lock()\n' +
+       '    defer c.mu.Unlock()\n' +
+       '    c.calls++\n' +
+       '}\n\n' +
+       '// errgroup: параллельные проверки с первой ошибкой\n' +
+       'g, ctx := errgroup.WithContext(ctx)\n' +
+       'for _, url := range urls {\n' +
+       '    url := url\n' +
+       '    g.Go(func() error { return check(ctx, url) })\n' +
+       '}\n' +
+       'err := g.Wait()'),
+  tasks:[
+    {
+      type:'write', id:'stage1g-1',
+      prompt:'Опишите потокобезопасный тестовый счётчик вызовов: структуру <code class="inline">SpyCounter</code> с ' +
+             'полем <code class="inline">mu sync.Mutex</code> и методом <code class="inline">Inc()</code>, который ' +
+             'под мьютексом увеличивает счётчик.',
+      checks:[
+        {label:'поле mu типа sync.Mutex', re:/mu\s+sync\.Mutex/},
+        {label:'захват c.mu.Lock()', re:/\.mu\.Lock\(\)/},
+        {label:'освобождение через defer ...Unlock()', re:/defer\s+\w*\.?mu\.Unlock\(\)/}
+      ],
+      hint:'type SpyCounter struct {\n    mu    sync.Mutex\n    calls int\n}\n\nfunc (c *SpyCounter) Inc() {\n    c.mu.Lock()\n    defer c.mu.Unlock()\n    c.calls++\n}'
+    },
+    {
+      type:'write', id:'stage1g-2',
+      prompt:'Запустите 100 горутин, каждая атомарно увеличивает общий счётчик <code class="inline">int64</code>, ' +
+             'дождитесь их через <code class="inline">sync.WaitGroup</code>. Используйте ' +
+             '<code class="inline">atomic.AddInt64</code> — без гонок, которые показал бы -race.',
+      checks:[
+        {label:'используется sync.WaitGroup', re:/sync\.WaitGroup|wg\.Add\(|wg\.Wait\(/},
+        {label:'запуск горутины go func', re:/go\s+func\(/},
+        {label:'атомарный инкремент atomic.AddInt64', re:/atomic\.AddInt64\(/}
+      ],
+      hint:'var n int64\nvar wg sync.WaitGroup\nfor i := 0; i < 100; i++ {\n    wg.Add(1)\n    go func() {\n        defer wg.Done()\n        atomic.AddInt64(&n, 1)\n    }()\n}\nwg.Wait()'
+    },
+    {
+      type:'choice', id:'stage1g-3',
+      prompt:'Когда вместо <code class="inline">sync.Mutex</code> стоит взять <code class="inline">sync.RWMutex</code>?',
+      options:[
+        'Всегда — он быстрее во всех случаях',
+        'Когда читателей много, а писателей мало: читатели берут RLock() параллельно',
+        'Когда нужна защита только одной горутины',
+        'RWMutex нужен только для каналов'
+      ],
+      correct:1,
+      explanation:'RWMutex разрешает много одновременных читателей (RLock) и эксклюзивную запись (Lock). Выгоден при частом чтении и редкой записи; при интенсивной записи обычный Mutex проще и не медленнее.'
+    }
+  ]
+},
+{
   id:'stage2', depth:2, title:'Этап 2. Тестирование «из коробки»',
   theory:
     '<p>Тестовые функции имеют вид <code class="inline">func TestXxx(t *testing.T)</code> и находятся автоматически ' +
@@ -778,6 +848,194 @@ var TOPICS = [
   ]
 },
 {
+  id:'stage2d', depth:2, title:'Этап 2.4. Бенчмарки (testing.B) и профилирование pprof',
+  theory:
+    '<p>Бенчмарк — функция <code class="inline">func BenchmarkXxx(b *testing.B)</code> с циклом ' +
+    '<code class="inline">for i := 0; i &lt; b.N; i++</code>. Go сам подбирает <code class="inline">b.N</code>, ' +
+    'чтобы набрать статистически значимое время. Запуск: <code class="inline">go test -bench=. -benchmem</code>.</p>' +
+    '<p>Флаг <code class="inline">-benchmem</code> добавляет к выводу аллокации — <code class="inline">B/op</code> ' +
+    'и <code class="inline">allocs/op</code>; часто именно лишние аллокации, а не CPU, тормозят код. ' +
+    '<code class="inline">b.ResetTimer()</code> исключает дорогую подготовку из замера, ' +
+    '<code class="inline">b.ReportAllocs()</code> включает учёт аллокаций принудительно.</p>' +
+    '<p>Для поиска узких мест снимают профили: <code class="inline">-cpuprofile cpu.out</code> / ' +
+    '<code class="inline">-memprofile mem.out</code> и смотрят через <code class="inline">go tool pprof</code>. ' +
+    'Сравнивать результаты между версиями удобно утилитой <code class="inline">benchstat</code> — так ловят ' +
+    'регрессии производительности на CI.</p>' +
+    hl('func BenchmarkJoin(b *testing.B) {\n' +
+       '    data := makeData() // подготовка\n' +
+       '    b.ReportAllocs()\n' +
+       '    b.ResetTimer()     // замер только самого Join\n' +
+       '    for i := 0; i < b.N; i++ {\n' +
+       '        _ = strings.Join(data, ",")\n' +
+       '    }\n' +
+       '}\n\n' +
+       '// go test -bench=. -benchmem -cpuprofile cpu.out\n' +
+       '// go tool pprof cpu.out'),
+  tasks:[
+    {
+      type:'write', id:'stage2d-1',
+      prompt:'Напишите бенчмарк <code class="inline">BenchmarkConcat</code>, который в цикле ' +
+             '<code class="inline">b.N</code> раз склеивает строки. Это каркас для замера производительности.',
+      checks:[
+        {label:'сигнатура func BenchmarkConcat(b *testing.B)', re:/func\s+BenchmarkConcat\(b\s+\*testing\.B\)/},
+        {label:'цикл до b.N', re:/for\s+[^;]*;\s*\w+\s*<\s*b\.N/},
+      ],
+      hint:'func BenchmarkConcat(b *testing.B) {\n    for i := 0; i < b.N; i++ {\n        _ = "a" + "b" + "c"\n    }\n}'
+    },
+    {
+      type:'choice', id:'stage2d-2',
+      prompt:'Что добавляет к выводу бенчмарка флаг <code class="inline">-benchmem</code>?',
+      options:[
+        'Время компиляции',
+        'Количество байт и аллокаций на операцию (B/op, allocs/op)',
+        'Покрытие кода тестами',
+        'Список горутин'
+      ],
+      correct:1,
+      explanation:'-benchmem показывает память: B/op (байт на операцию) и allocs/op (аллокаций на операцию). Часто именно аллокации — главный источник замедления.'
+    },
+    {
+      type:'choice', id:'stage2d-3',
+      prompt:'Зачем вызывать <code class="inline">b.ResetTimer()</code> перед основным циклом?',
+      options:[
+        'Чтобы сбросить счётчик горутин',
+        'Чтобы исключить время дорогой подготовки из измеряемого результата',
+        'Чтобы бенчмарк запускался параллельно',
+        'Это обязательный вызов, иначе тест упадёт'
+      ],
+      correct:1,
+      explanation:'ResetTimer обнуляет таймер после setup, чтобы в замер попал только измеряемый код, а не подготовка данных.'
+    }
+  ]
+},
+{
+  id:'stage2e', depth:2, title:'Этап 2.5. Фаззинг (go test -fuzz)',
+  theory:
+    '<p>С Go 1.18 фаззинг встроен в стандартный тулинг. Фаз-тест — функция ' +
+    '<code class="inline">func FuzzXxx(f *testing.F)</code>: через <code class="inline">f.Add(seed)</code> задают ' +
+    'затравки, а в <code class="inline">f.Fuzz(func(t *testing.T, in ...) { ... })</code> описывают свойство, ' +
+    'которое должно выполняться на любых входах.</p>' +
+    '<p>Запуск: <code class="inline">go test -fuzz=Fuzz</code>. Движок мутирует входные данные, ищет падения, ' +
+    'паники и нарушения свойств; найденный проблемный вход сохраняется в <code class="inline">testdata/fuzz/</code> ' +
+    'и дальше прогоняется как обычный регрессионный тест.</p>' +
+    '<p>Самое полезное свойство для тестировщика — <b>roundtrip</b>: ' +
+    '<code class="inline">decode(encode(x)) == x</code>, или «функция не паникует и держит инвариант». Фаззинг ' +
+    'находит пограничные случаи (пустые строки, юникод, огромные числа), которые руками не придумать.</p>' +
+    hl('func FuzzReverse(f *testing.F) {\n' +
+       '    f.Add("Привет")        // затравка\n' +
+       '    f.Fuzz(func(t *testing.T, s string) {\n' +
+       '        got := Reverse(Reverse(s))\n' +
+       '        if got != s {       // свойство roundtrip\n' +
+       '            t.Errorf("roundtrip сломан: %q -> %q", s, got)\n' +
+       '        }\n' +
+       '    })\n' +
+       '}\n\n' +
+       '// go test -fuzz=FuzzReverse'),
+  tasks:[
+    {
+      type:'write', id:'stage2e-1',
+      prompt:'Напишите каркас фаз-теста <code class="inline">FuzzReverse</code>: добавьте одну затравку через ' +
+             '<code class="inline">f.Add</code> и внутри <code class="inline">f.Fuzz</code> проверьте свойство ' +
+             'roundtrip (двойной разворот строки возвращает исходную).',
+      checks:[
+        {label:'сигнатура func FuzzReverse(f *testing.F)', re:/func\s+FuzzReverse\(f\s+\*testing\.F\)/},
+        {label:'затравка через f.Add(', re:/f\.Add\(/},
+        {label:'тело через f.Fuzz(func(t *testing.T, ...)', re:/f\.Fuzz\(func\(t\s+\*testing\.T,/}
+      ],
+      hint:'func FuzzReverse(f *testing.F) {\n    f.Add("abc")\n    f.Fuzz(func(t *testing.T, s string) {\n        if Reverse(Reverse(s)) != s {\n            t.Errorf("roundtrip сломан на %q", s)\n        }\n    })\n}'
+    },
+    {
+      type:'choice', id:'stage2e-2',
+      prompt:'Какой командой запускают фаззинг функции <code class="inline">FuzzParse</code>?',
+      options:[
+        'go test -run=FuzzParse',
+        'go test -fuzz=FuzzParse',
+        'go fuzz FuzzParse',
+        'go test -bench=FuzzParse'
+      ],
+      correct:1,
+      explanation:'Фаззинг включается флагом -fuzz. Без него f.Fuzz просто прогонит затравки как обычный тест. go test -fuzz=FuzzParse запускает собственно мутационный поиск.'
+    },
+    {
+      type:'choice', id:'stage2e-3',
+      prompt:'Что произойдёт с входом, на котором фаззер нашёл падение?',
+      options:[
+        'Он теряется после завершения прогона',
+        'Он сохраняется в testdata/fuzz и дальше проверяется как регрессионный тест',
+        'Он автоматически исправляет код',
+        'Он отправляется на сервер Go'
+      ],
+      correct:1,
+      explanation:'Проблемный вход сохраняется в корпус testdata/fuzz/, поэтому однажды найденный баг потом ловится обычным go test как регрессия.'
+    }
+  ]
+},
+{
+  id:'stage2f', depth:2, title:'Этап 2.6. Golden-файлы (snapshot-тесты)',
+  theory:
+    '<p>Golden-файлы (snapshot-тесты) сравнивают фактический вывод с эталоном, сохранённым в ' +
+    '<code class="inline">testdata/*.golden</code>. Это удобно для большого структурированного вывода: ' +
+    'сериализованный JSON, отрендеренный шаблон, сгенерированный отчёт — то, что неудобно сверять руками в коде.</p>' +
+    '<p>Обычный приём — флаг <code class="inline">-update</code>: при его наличии тест не сравнивает, а ' +
+    'перезаписывает эталон (<code class="inline">os.WriteFile</code>). Без флага — читает эталон ' +
+    '(<code class="inline">os.ReadFile</code>) и сравнивает с полученным.</p>' +
+    '<p>Главная дисциплина: эталон обновляют осознанно и всегда просматривают диф перед коммитом. Слепое ' +
+    '<code class="inline">-update</code> превращает golden-тест в бесполезный «штамп», который подтверждает любой ' +
+    'результат, включая сломанный.</p>' +
+    hl('var update = flag.Bool("update", false, "обновить golden-файлы")\n\n' +
+       'func TestRender(t *testing.T) {\n' +
+       '    got := Render(data)\n' +
+       '    golden := "testdata/render.golden"\n' +
+       '    if *update {\n' +
+       '        os.WriteFile(golden, got, 0644)\n' +
+       '    }\n' +
+       '    want, _ := os.ReadFile(golden)\n' +
+       '    if !bytes.Equal(got, want) {\n' +
+       '        t.Errorf("вывод не совпал с %s", golden)\n' +
+       '    }\n' +
+       '}\n\n' +
+       '// обновить эталон: go test -run TestRender -update'),
+  tasks:[
+    {
+      type:'write', id:'stage2f-1',
+      prompt:'Объявите флаг <code class="inline">-update</code> и напишите условие: если флаг установлен — ' +
+             'перезаписать golden-файл через <code class="inline">os.WriteFile</code>, иначе прочитать его через ' +
+             '<code class="inline">os.ReadFile</code> для сравнения.',
+      checks:[
+        {label:'объявлен флаг через flag.Bool("update"', re:/flag\.Bool\("update"/},
+        {label:'условие по *update', re:/if\s+\*update/},
+        {label:'перезапись эталона os.WriteFile(', re:/os\.WriteFile\(/},
+        {label:'чтение эталона os.ReadFile(', re:/os\.ReadFile\(/}
+      ],
+      hint:'var update = flag.Bool("update", false, "обновить golden")\n\nfunc check(t *testing.T, got []byte, golden string) {\n    if *update {\n        os.WriteFile(golden, got, 0644)\n    }\n    want, _ := os.ReadFile(golden)\n    if !bytes.Equal(got, want) {\n        t.Errorf("не совпало с %s", golden)\n    }\n}'
+    },
+    {
+      type:'choice', id:'stage2f-2',
+      prompt:'Зачем golden-тесту флаг <code class="inline">-update</code>?',
+      options:[
+        'Чтобы ускорить тест',
+        'Чтобы осознанно перегенерировать эталон, когда изменение вывода ожидаемо',
+        'Чтобы отключить тест',
+        'Чтобы обновить версию Go'
+      ],
+      correct:1,
+      explanation:'-update перезаписывает эталонные файлы. Его запускают намеренно при ожидаемом изменении вывода и затем просматривают diff перед коммитом.'
+    },
+    {
+      type:'choice', id:'stage2f-3',
+      prompt:'Для чего golden-тесты подходят лучше всего?',
+      options:[
+        'Для проверки одного числа или булева флага',
+        'Для большого структурированного вывода: JSON, шаблоны, отчёты',
+        'Для измерения производительности',
+        'Для проверки сетевых таймаутов'
+      ],
+      correct:1,
+      explanation:'Golden-файлы окупаются на объёмном структурированном выводе, который неудобно описывать прямо в коде теста.'
+    }
+  ]
+},
+{
   id:'stage3', depth:3, title:'Этап 3. Экосистема тестовых фреймворков',
   theory:
     '<p><b>Testify</b> — три ключевых пакета: <code class="inline">assert</code> (отмечает провал и продолжает), ' +
@@ -867,6 +1125,69 @@ var TOPICS = [
   ]
 },
 {
+  id:'stage3c', depth:3, title:'Этап 3.4. httptest: сервер и ResponseRecorder',
+  theory:
+    '<p>Пакет <code class="inline">net/http/httptest</code> даёт два инструмента для тестов без настоящей сети. ' +
+    '<code class="inline">httptest.NewServer(handler)</code> поднимает реальный локальный HTTP-сервер на ' +
+    'случайном порту — к нему обращается тестируемый <b>клиент</b> по <code class="inline">ts.URL</code>; в конце ' +
+    '<code class="inline">defer ts.Close()</code>.</p>' +
+    '<p><code class="inline">httptest.NewRecorder()</code> — наоборот, для теста <b>хендлера</b>: это поддельный ' +
+    '<code class="inline">ResponseWriter</code>, который записывает ответ. Хендлер вызывают напрямую ' +
+    '<code class="inline">handler(rec, req)</code>, а затем проверяют <code class="inline">rec.Code</code>, ' +
+    '<code class="inline">rec.Body</code> и заголовки — без прослушивания порта.</p>' +
+    '<p>Правило выбора: тестируете свой HTTP-клиент — поднимайте <code class="inline">NewServer</code>; тестируете ' +
+    'свой хендлер — берите <code class="inline">NewRecorder</code>. Запрос для рекордера собирают через ' +
+    '<code class="inline">httptest.NewRequest</code>.</p>' +
+    hl('// 1) тест клиента: фейковый сервер\n' +
+       'ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n' +
+       '    w.Write([]byte(`{"ok":true}`))\n' +
+       '}))\n' +
+       'defer ts.Close()\n' +
+       'body, _ := FetchWithTimeout(ctx, ts.URL)\n\n' +
+       '// 2) тест хендлера: рекордер\n' +
+       'req := httptest.NewRequest(http.MethodGet, "/health", nil)\n' +
+       'rec := httptest.NewRecorder()\n' +
+       'HealthHandler(rec, req)\n' +
+       'if rec.Code != http.StatusOK { /* ... */ }'),
+  tasks:[
+    {
+      type:'write', id:'stage3c-1',
+      prompt:'Поднимите фейковый сервер через <code class="inline">httptest.NewServer</code>, который отвечает ' +
+             'JSON, и не забудьте закрыть его по завершении теста.',
+      checks:[
+        {label:'сервер через httptest.NewServer(', re:/httptest\.NewServer\(/},
+        {label:'хендлер пишет ответ (w.Write / WriteHeader)', re:/w\.Write\(|WriteHeader\(/},
+        {label:'закрытие через defer ...Close()', re:/defer\s+\w+\.Close\(\)/}
+      ],
+      hint:'ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n    w.Write([]byte(`{"ok":true}`))\n}))\ndefer ts.Close()'
+    },
+    {
+      type:'write', id:'stage3c-2',
+      prompt:'Протестируйте хендлер <code class="inline">HealthHandler</code> через ' +
+             '<code class="inline">httptest.NewRecorder()</code>: создайте запрос и рекордер, вызовите хендлер и ' +
+             'проверьте код ответа <code class="inline">rec.Code</code>.',
+      checks:[
+        {label:'рекордер httptest.NewRecorder()', re:/httptest\.NewRecorder\(\)/},
+        {label:'запрос httptest.NewRequest(', re:/httptest\.NewRequest\(/},
+        {label:'проверка кода ответа rec.Code', re:/\.Code/}
+      ],
+      hint:'req := httptest.NewRequest(http.MethodGet, "/health", nil)\nrec := httptest.NewRecorder()\nHealthHandler(rec, req)\nif rec.Code != http.StatusOK {\n    t.Errorf("код %d, хотел 200", rec.Code)\n}'
+    },
+    {
+      type:'choice', id:'stage3c-3',
+      prompt:'В чём разница между <code class="inline">httptest.NewServer</code> и <code class="inline">httptest.NewRecorder</code>?',
+      options:[
+        'NewServer быстрее, в остальном одно и то же',
+        'NewServer поднимает реальный сервер для теста клиента; NewRecorder ловит ответ хендлера без сети',
+        'NewRecorder работает только с HTTPS',
+        'NewServer нужен только для gRPC'
+      ],
+      correct:1,
+      explanation:'NewServer — настоящий локальный сервер (тестируем клиент по ts.URL). NewRecorder — поддельный ResponseWriter (тестируем хендлер напрямую, без порта и сети).'
+    }
+  ]
+},
+{
   id:'stage4', depth:4, title:'Этап 4. API и интеграционные тесты',
   theory:
     '<p><code class="inline">net/http/httptest</code> позволяет поднять реальный HTTP-сервер в памяти без сети — ' +
@@ -905,6 +1226,255 @@ var TOPICS = [
       ],
       correct:1,
       explanation:'Повторный прогон — способ проверить изоляцию теста: если он иногда падает, значит где-то осталось состояние, которое переживает один прогон (например, не уникальные тестовые данные при параллельных тестах).'
+    }
+  ]
+},
+{
+  id:'stage4b', depth:4, title:'Этап 4.2. Тестирование БД: database/sql и sqlmock',
+  theory:
+    '<p>Репозитории поверх <code class="inline">database/sql</code> удобно покрывать юнит-тестами без настоящей ' +
+    'базы с помощью <code class="inline">go-sqlmock</code> (DATA-DOG/go-sqlmock). Он подменяет драйвер и позволяет ' +
+    'заранее описать ожидаемые запросы и их ответы.</p>' +
+    '<p><code class="inline">sqlmock.New()</code> возвращает <code class="inline">*sql.DB</code> и объект ' +
+    '<code class="inline">mock</code>. На нём задают ожидания: <code class="inline">ExpectQuery(...)</code> / ' +
+    '<code class="inline">ExpectExec(...)</code>, уточняют аргументы <code class="inline">WithArgs(...)</code> и ' +
+    'ответ <code class="inline">WillReturnRows(...)</code> / <code class="inline">WillReturnResult(...)</code>.</p>' +
+    '<p>В конце обязательно проверяют <code class="inline">mock.ExpectationsWereMet()</code> — что все ожидаемые ' +
+    'запросы действительно случились (и не случилось лишних). Минус подхода: вы проверяете только текст/порядок ' +
+    'запросов, а не поведение реальной СУБД — для этого есть Testcontainers (следующая тема).</p>' +
+    hl('db, mock, _ := sqlmock.New()\n' +
+       'defer db.Close()\n\n' +
+       'rows := sqlmock.NewRows([]string{"id", "name"}).\n' +
+       '    AddRow(1, "Аня")\n' +
+       'mock.ExpectQuery("SELECT id, name FROM users WHERE id = ?").\n' +
+       '    WithArgs(1).\n' +
+       '    WillReturnRows(rows)\n\n' +
+       'u, err := repo.GetUser(db, 1)\n' +
+       'if err := mock.ExpectationsWereMet(); err != nil {\n' +
+       '    t.Errorf("ожидания не выполнены: %v", err)\n' +
+       '}'),
+  tasks:[
+    {
+      type:'write', id:'stage4b-1',
+      prompt:'Настройте <code class="inline">sqlmock</code>: создайте мок-базу и опишите ожидание SELECT-запроса, ' +
+             'возвращающего строку через <code class="inline">WillReturnRows</code>.',
+      checks:[
+        {label:'создание мок-базы sqlmock.New()', re:/sqlmock\.New\(/},
+        {label:'ожидание запроса ExpectQuery/ExpectExec', re:/\.ExpectQuery\(|mock\.ExpectQuery\(|\.ExpectExec\(/},
+        {label:'ответ через WillReturnRows/WillReturnResult', re:/WillReturnRows\(|WillReturnResult\(/}
+      ],
+      hint:'db, mock, _ := sqlmock.New()\ndefer db.Close()\nrows := sqlmock.NewRows([]string{"id"}).AddRow(1)\nmock.ExpectQuery("SELECT id FROM users").WillReturnRows(rows)'
+    },
+    {
+      type:'choice', id:'stage4b-2',
+      prompt:'Зачем в конце теста вызывать <code class="inline">mock.ExpectationsWereMet()</code>?',
+      options:[
+        'Чтобы закрыть соединение с БД',
+        'Чтобы убедиться, что все заданные запросы произошли и не было лишних',
+        'Чтобы ускорить тест',
+        'Чтобы сгенерировать SQL-миграции'
+      ],
+      correct:1,
+      explanation:'ExpectationsWereMet проверяет, что фактические запросы совпали с ожидаемыми по составу и порядку — иначе тест прошёл бы, даже если репозиторий сходил в базу не так, как задумано.'
+    },
+    {
+      type:'choice', id:'stage4b-3',
+      prompt:'Главный недостаток sqlmock по сравнению с реальной БД?',
+      options:[
+        'Он медленнее реальной базы',
+        'Он проверяет только текст и порядок запросов, но не поведение настоящей СУБД',
+        'Он требует Docker',
+        'Он работает только с PostgreSQL'
+      ],
+      correct:1,
+      explanation:'sqlmock не исполняет SQL по-настоящему — он сверяет ожидаемые запросы. Реальные ограничения, типы, транзакции и диалект проверяются только против живой БД (Testcontainers).'
+    }
+  ]
+},
+{
+  id:'stage4c', depth:4, title:'Этап 4.3. Testcontainers-go: реальная БД в тестах',
+  theory:
+    '<p><code class="inline">testcontainers-go</code> поднимает настоящие зависимости (PostgreSQL, Redis, Kafka) в ' +
+    'Docker-контейнерах на время теста. Это честная интеграция: проверяется реальный диалект SQL, миграции, ' +
+    'транзакции — то, что sqlmock проверить не может. Цена — нужен Docker и тесты идут медленнее.</p>' +
+    '<p>Контейнер описывают через <code class="inline">ContainerRequest{Image, ExposedPorts, WaitingFor}</code> и ' +
+    'поднимают <code class="inline">GenericContainer(ctx, ...)</code>. Критично правильно задать ' +
+    '<code class="inline">WaitingFor</code> (стратегию готовности): ' +
+    '<code class="inline">wait.ForListeningPort</code> или <code class="inline">wait.ForLog("ready")</code> — иначе ' +
+    'тест обратится к ещё не поднявшейся базе.</p>' +
+    '<p>Реальный хост и порт берут через <code class="inline">container.Host(ctx)</code> и ' +
+    '<code class="inline">container.MappedPort(ctx, "5432")</code>, а в конце обязательно ' +
+    '<code class="inline">defer container.Terminate(ctx)</code>, чтобы не плодить висящие контейнеры на CI.</p>' +
+    hl('req := testcontainers.ContainerRequest{\n' +
+       '    Image:        "postgres:16",\n' +
+       '    ExposedPorts: []string{"5432/tcp"},\n' +
+       '    Env:          map[string]string{"POSTGRES_PASSWORD": "test"},\n' +
+       '    WaitingFor:   wait.ForListeningPort("5432/tcp"),\n' +
+       '}\n' +
+       'pg, err := testcontainers.GenericContainer(ctx,\n' +
+       '    testcontainers.GenericContainerRequest{ContainerRequest: req, Started: true})\n' +
+       'defer pg.Terminate(ctx)\n' +
+       'host, _ := pg.Host(ctx)\n' +
+       'port, _ := pg.MappedPort(ctx, "5432")'),
+  tasks:[
+    {
+      type:'write', id:'stage4c-1',
+      prompt:'Опишите <code class="inline">ContainerRequest</code> для контейнера postgres: образ, проброшенный ' +
+             'порт и стратегию готовности <code class="inline">WaitingFor</code>.',
+      checks:[
+        {label:'описан ContainerRequest{', re:/ContainerRequest\{/},
+        {label:'проброшенный порт ExposedPorts', re:/ExposedPorts/},
+        {label:'стратегия готовности через wait.For...', re:/WaitingFor\s*:\s*wait\.For|wait\.For/}
+      ],
+      hint:'req := testcontainers.ContainerRequest{\n    Image:        "postgres:16",\n    ExposedPorts: []string{"5432/tcp"},\n    WaitingFor:   wait.ForListeningPort("5432/tcp"),\n}'
+    },
+    {
+      type:'choice', id:'stage4c-2',
+      prompt:'Когда реальный контейнер (Testcontainers) предпочтительнее sqlmock?',
+      options:[
+        'Всегда — sqlmock устарел',
+        'Когда нужно проверить реальный SQL-диалект, миграции и транзакции, а не только текст запросов',
+        'Когда тесты должны быть максимально быстрыми',
+        'Когда Docker недоступен на CI'
+      ],
+      correct:1,
+      explanation:'Testcontainers даёт честную интеграцию с настоящей СУБД. sqlmock быстрее и не требует Docker, но проверяет лишь ожидаемые запросы, а не поведение базы.'
+    },
+    {
+      type:'choice', id:'stage4c-3',
+      prompt:'Почему важен <code class="inline">defer container.Terminate(ctx)</code>?',
+      options:[
+        'Иначе тест не скомпилируется',
+        'Чтобы остановить и удалить контейнер после теста и не копить висящие контейнеры',
+        'Чтобы ускорить запуск контейнера',
+        'Чтобы применить миграции'
+      ],
+      correct:1,
+      explanation:'Terminate освобождает контейнер. Без него на CI и локально будут накапливаться запущенные контейнеры, съедая ресурсы.'
+    }
+  ]
+},
+{
+  id:'stage4d', depth:4, title:'Этап 4.4. gRPC-тесты через bufconn',
+  theory:
+    '<p>gRPC-сервис можно тестировать без реального сетевого порта с помощью ' +
+    '<code class="inline">google.golang.org/grpc/test/bufconn</code> — слушателя в памяти. Это быстро, ' +
+    'изолированно и не конфликтует с занятыми портами на CI.</p>' +
+    '<p>Схема: создают <code class="inline">lis := bufconn.Listen(bufSize)</code>, поднимают на нём обычный ' +
+    '<code class="inline">grpc.NewServer()</code> и <code class="inline">go srv.Serve(lis)</code>. Клиент ' +
+    'подключают через <code class="inline">grpc.DialContext</code> с ' +
+    '<code class="inline">grpc.WithContextDialer</code>, который возвращает соединение из того же ' +
+    '<code class="inline">lis.DialContext</code>.</p>' +
+    '<p>Так как транспорт в памяти, используют небезопасные креды ' +
+    '<code class="inline">grpc.WithTransportCredentials(insecure.NewCredentials())</code>. Дальше вызывают методы ' +
+    'сгенерированного клиента и проверяют ответы — как против настоящего сервера, но без сети.</p>' +
+    hl('const bufSize = 1024 * 1024\n' +
+       'lis := bufconn.Listen(bufSize)\n' +
+       'srv := grpc.NewServer()\n' +
+       'pb.RegisterGreeterServer(srv, &server{})\n' +
+       'go srv.Serve(lis)\n\n' +
+       'dialer := func(ctx context.Context, _ string) (net.Conn, error) {\n' +
+       '    return lis.DialContext(ctx)\n' +
+       '}\n' +
+       'conn, _ := grpc.DialContext(ctx, "bufnet",\n' +
+       '    grpc.WithContextDialer(dialer),\n' +
+       '    grpc.WithTransportCredentials(insecure.NewCredentials()))\n' +
+       'client := pb.NewGreeterClient(conn)'),
+  tasks:[
+    {
+      type:'write', id:'stage4d-1',
+      prompt:'Поднимите gRPC-сервер на in-memory слушателе: создайте <code class="inline">bufconn.Listen</code>, ' +
+             'обычный <code class="inline">grpc.NewServer()</code> и запустите его на этом слушателе.',
+      checks:[
+        {label:'in-memory слушатель bufconn.Listen(', re:/bufconn\.Listen\(/},
+        {label:'создан grpc.NewServer()', re:/grpc\.NewServer\(\)/},
+        {label:'сервер запущен на слушателе .Serve(', re:/\.Serve\(/}
+      ],
+      hint:'lis := bufconn.Listen(1024 * 1024)\nsrv := grpc.NewServer()\npb.RegisterGreeterServer(srv, &server{})\ngo srv.Serve(lis)'
+    },
+    {
+      type:'choice', id:'stage4d-2',
+      prompt:'Почему для юнит-тестов gRPC берут bufconn, а не реальный порт?',
+      options:[
+        'bufconn шифрует трафик',
+        'Соединение в памяти: быстро, изолированно и без конфликтов занятых портов на CI',
+        'bufconn нужен только для HTTP/1.1',
+        'Без него gRPC не компилируется'
+      ],
+      correct:1,
+      explanation:'bufconn — слушатель в памяти. Тест не открывает реальный TCP-порт, работает быстрее и не ловит конфликты портов, что особенно важно на CI.'
+    },
+    {
+      type:'choice', id:'stage4d-3',
+      prompt:'Какие креды обычно указывают клиенту при подключении через bufconn?',
+      options:[
+        'TLS с реальным сертификатом',
+        'Небезопасные: grpc.WithTransportCredentials(insecure.NewCredentials())',
+        'Никакие — соединение анонимное',
+        'OAuth-токен'
+      ],
+      correct:1,
+      explanation:'Транспорт в памяти не шифруется, поэтому клиенту дают insecure-креды. TLS здесь не нужен и только мешал бы.'
+    }
+  ]
+},
+{
+  id:'stage4e', depth:4, title:'Этап 4.5. Контрактное тестирование и JSON-схемы',
+  theory:
+    '<p>Контрактные тесты проверяют, что API соответствует согласованному «контракту» между потребителем ' +
+    '(consumer) и поставщиком (provider). Они ловят поломку интеграции раньше, чем сквозные тесты, и не требуют ' +
+    'одновременно поднятых обеих сторон.</p>' +
+    '<p>Простой вариант — валидация ответа по <b>JSON Schema</b>: схема описывает обязательные поля и типы, а тест ' +
+    'проверяет, что реальный ответ ей удовлетворяет (в Go — <code class="inline">gojsonschema</code> или ' +
+    '<code class="inline">santhosh-tekuri/jsonschema</code>). Схема живёт в репозитории и версионируется вместе ' +
+    'с API.</p>' +
+    '<p>Более строгий подход — <b>consumer-driven contracts</b> (Pact, <code class="inline">pact-go</code>): ' +
+    'потребитель описывает ожидания, из них генерируется контракт (pact-файл), а поставщик на своей стороне ' +
+    'проверяет, что всё ещё его выполняет. Так изменения API не ломают клиентов незаметно.</p>' +
+    hl('schemaLoader := gojsonschema.NewReferenceLoader("file://./user.schema.json")\n' +
+       'docLoader := gojsonschema.NewBytesLoader(responseBody)\n\n' +
+       'result, err := gojsonschema.Validate(schemaLoader, docLoader)\n' +
+       'if err != nil {\n' +
+       '    t.Fatal(err)\n' +
+       '}\n' +
+       'if !result.Valid() {\n' +
+       '    t.Errorf("ответ не соответствует схеме: %v", result.Errors())\n' +
+       '}'),
+  tasks:[
+    {
+      type:'choice', id:'stage4e-1',
+      prompt:'Что в первую очередь защищают контрактные тесты?',
+      options:[
+        'Производительность сервиса под нагрузкой',
+        'Совместимость между потребителем и поставщиком API при изменениях',
+        'Покрытие кода юнит-тестами',
+        'Безопасность от SQL-инъекций'
+      ],
+      correct:1,
+      explanation:'Контрактные тесты фиксируют договор между сторонами интеграции и сигналят, когда изменение API ломает ожидания потребителя — ещё до сквозных тестов.'
+    },
+    {
+      type:'write', id:'stage4e-2',
+      prompt:'Проверьте тело ответа на соответствие JSON-схеме через ' +
+             '<code class="inline">gojsonschema.Validate</code> и убедитесь, что результат валиден ' +
+             '(<code class="inline">result.Valid()</code>).',
+      checks:[
+        {label:'вызов gojsonschema.Validate(', re:/gojsonschema\.Validate\(|jsonschema/},
+        {label:'проверка result.Valid()', re:/\.Valid\(\)/}
+      ],
+      hint:'result, err := gojsonschema.Validate(schemaLoader, docLoader)\nif err != nil {\n    t.Fatal(err)\n}\nif !result.Valid() {\n    t.Errorf("не по схеме: %v", result.Errors())\n}'
+    },
+    {
+      type:'choice', id:'stage4e-3',
+      prompt:'Что означает consumer-driven contract (например, в Pact)?',
+      options:[
+        'Поставщик сам решает формат ответа, не согласуя с клиентами',
+        'Потребитель описывает свои ожидания, а поставщик проверяет, что их выполняет',
+        'Контракт генерируется из нагрузочных тестов',
+        'Это просто другое название для unit-тестов'
+      ],
+      correct:1,
+      explanation:'В consumer-driven подходе ожидания задаёт потребитель; из них получается контракт, который затем верифицирует поставщик. Так ломающие изменения API всплывают на стороне провайдера.'
     }
   ]
 },
