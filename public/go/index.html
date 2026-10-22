@@ -533,6 +533,140 @@ var TOPICS = [
   ]
 },
 {
+  id:'stage1e', depth:1, title:'Этап 1.5. Дженерики (generics) для тестовых хелперов',
+  theory:
+    '<p>С Go 1.18 в языке есть дженерики — параметры типа. Для тестировщика это прежде всего способ ' +
+    'писать переиспользуемые хелперы без <code class="inline">interface{}</code> и ручных приведений типов: ' +
+    'типобезопасный <code class="inline">AssertEqual</code>, обобщённые <code class="inline">Map/Filter/Contains</code> ' +
+    'над срезами тестовых данных.</p>' +
+    '<p>Параметр типа объявляется в квадратных скобках с <b>ограничением</b> (constraint): ' +
+    '<code class="inline">[T any]</code> — любой тип, <code class="inline">[T comparable]</code> — тип, который ' +
+    'поддерживает <code class="inline">==</code> и <code class="inline">!=</code> (его можно сравнивать и класть ' +
+    'в ключи map). Своё ограничение — это обычный <code class="inline">interface</code> с перечислением типов ' +
+    'или методов.</p>' +
+    '<p>Правило меры: дженерики нужны там, где одна и та же логика работает для многих типов (коллекции, хелперы ' +
+    'сравнения). Если тип один — обычная функция проще и читается лучше. Не превращайте тесты в головоломку из ' +
+    'параметров типа.</p>' +
+    hl('// Типобезопасный хелпер без interface{} и приведений типов\n' +
+       'func Map[T any, U any](in []T, f func(T) U) []U {\n' +
+       '    out := make([]U, 0, len(in))\n' +
+       '    for _, v := range in {\n' +
+       '        out = append(out, f(v))\n' +
+       '    }\n' +
+       '    return out\n' +
+       '}\n\n' +
+       'func AssertEqual[T comparable](t *testing.T, got, want T) {\n' +
+       '    if got != want {\n' +
+       '        t.Errorf("got %v, want %v", got, want)\n' +
+       '    }\n' +
+       '}'),
+  tasks:[
+    {
+      type:'write', id:'stage1e-1',
+      prompt:'Напишите дженерик-функцию <code class="inline">Map[T any, U any](in []T, f func(T) U) []U</code>, ' +
+             'которая применяет функцию <code class="inline">f</code> к каждому элементу и возвращает новый срез ' +
+             'результатов. Пригодится, чтобы из среза объектов достать срез их полей в тестовых проверках.',
+      checks:[
+        {label:'сигнатура func Map[T any, U any](in []T, f func(T) U) []U', re:/func\s+Map\[T\s+any,\s*U\s+any\]\([^)]*\)\s*\[\]U/},
+        {label:'обход входного среза через range', re:/range\s+\w+/},
+        {label:'результат собирается через append', re:/append\(/}
+      ],
+      hint:'func Map[T any, U any](in []T, f func(T) U) []U {\n    out := make([]U, 0, len(in))\n    for _, v := range in {\n        out = append(out, f(v))\n    }\n    return out\n}'
+    },
+    {
+      type:'write', id:'stage1e-2',
+      prompt:'Напишите <code class="inline">Contains[T comparable](s []T, v T) bool</code> — проверку наличия ' +
+             'значения в срезе. Ограничение <code class="inline">comparable</code> нужно, чтобы можно было ' +
+             'сравнивать элементы через <code class="inline">==</code>.',
+      checks:[
+        {label:'ограничение comparable в сигнатуре', re:/func\s+Contains\[T\s+comparable\]/},
+        {label:'обход среза через range', re:/range\s+\w+/},
+        {label:'возврат true при совпадении', re:/return\s+true/}
+      ],
+      hint:'func Contains[T comparable](s []T, v T) bool {\n    for _, x := range s {\n        if x == v {\n            return true\n        }\n    }\n    return false\n}'
+    },
+    {
+      type:'choice', id:'stage1e-3',
+      prompt:'Чем ограничение <code class="inline">comparable</code> отличается от <code class="inline">any</code>?',
+      options:[
+        'comparable разрешает операции == и != над значениями типа',
+        'comparable работает быстрее any во время выполнения',
+        'any запрещает использовать тип в срезах',
+        'это синонимы, разницы нет'
+      ],
+      correct:0,
+      explanation:'comparable — ограничение для типов, поддерживающих == и != (их можно сравнивать и использовать как ключи map). any (= interface{}) сравнимость не гарантирует, == для него не скомпилируется.'
+    }
+  ]
+},
+{
+  id:'stage1f', depth:1, title:'Этап 1.6. context.Context: таймауты и отмена',
+  theory:
+    '<p><code class="inline">context.Context</code> — стандартный способ передавать по цепочке вызовов сигнал ' +
+    'отмены, дедлайн и небольшие значения запроса. Для тестировщика это ключ к управлению временем: любой ' +
+    'сетевой вызов или долгую операцию в тесте оборачивают контекстом с таймаутом, чтобы тест не висел вечно ' +
+    'при сбое зависимости.</p>' +
+    '<p><code class="inline">context.WithTimeout</code> и <code class="inline">context.WithCancel</code> ' +
+    'возвращают производный контекст и функцию <code class="inline">cancel</code>. Её всегда вызывают через ' +
+    '<code class="inline">defer cancel()</code> — иначе утечёт таймер/горутина. Канал ' +
+    '<code class="inline">ctx.Done()</code> закрывается при отмене или дедлайне, а ' +
+    '<code class="inline">ctx.Err()</code> говорит причину: <code class="inline">context.Canceled</code> или ' +
+    '<code class="inline">context.DeadlineExceeded</code>.</p>' +
+    '<p>Контекст передают первым аргументом функции (<code class="inline">ctx context.Context</code>) и не хранят ' +
+    'в структурах. Для HTTP-запроса используют <code class="inline">http.NewRequestWithContext</code> — тогда ' +
+    'запрос прервётся по таймауту контекста.</p>' +
+    hl('// API-клиент с таймаутом через контекст\n' +
+       'func FetchWithTimeout(ctx context.Context, url string) ([]byte, error) {\n' +
+       '    req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)\n' +
+       '    if err != nil {\n' +
+       '        return nil, err\n' +
+       '    }\n' +
+       '    resp, err := http.DefaultClient.Do(req)\n' +
+       '    if err != nil {\n' +
+       '        return nil, err // при таймауте тут будет context.DeadlineExceeded\n' +
+       '    }\n' +
+       '    defer resp.Body.Close()\n' +
+       '    return io.ReadAll(resp.Body)\n' +
+       '}'),
+  tasks:[
+    {
+      type:'write', id:'stage1f-1',
+      prompt:'Создайте контекст с таймаутом 2 секунды от <code class="inline">context.Background()</code> и ' +
+             'корректно освободите его ресурсы.',
+      checks:[
+        {label:'context.WithTimeout от context.Background()', re:/context\.WithTimeout\(context\.Background\(\)/},
+        {label:'таймаут 2 секунды (2 * time.Second)', re:/2\s*\*\s*time\.Second/},
+        {label:'освобождение через defer cancel()', re:/defer\s+cancel\(\)/}
+      ],
+      hint:'ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)\ndefer cancel()'
+    },
+    {
+      type:'write', id:'stage1f-2',
+      prompt:'Напишите <code class="inline">FetchWithTimeout(ctx context.Context, url string) ([]byte, error)</code>: ' +
+             'соберите GET-запрос с контекстом через <code class="inline">http.NewRequestWithContext</code> и ' +
+             'выполните его. Тогда запрос прервётся по таймауту контекста.',
+      checks:[
+        {label:'первым аргументом принимает context.Context', re:/func\s+FetchWithTimeout\(ctx\s+context\.Context/},
+        {label:'запрос с контекстом через http.NewRequestWithContext', re:/http\.NewRequestWithContext\(/},
+        {label:'выполнение запроса через .Do(', re:/\.Do\(/}
+      ],
+      hint:'func FetchWithTimeout(ctx context.Context, url string) ([]byte, error) {\n    req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)\n    if err != nil {\n        return nil, err\n    }\n    resp, err := http.DefaultClient.Do(req)\n    if err != nil {\n        return nil, err\n    }\n    defer resp.Body.Close()\n    return io.ReadAll(resp.Body)\n}'
+    },
+    {
+      type:'choice', id:'stage1f-3',
+      prompt:'Контекст создан с таймаутом, время истекло. Что вернёт <code class="inline">ctx.Err()</code>?',
+      options:[
+        'context.Canceled',
+        'context.DeadlineExceeded',
+        'nil',
+        'io.EOF'
+      ],
+      correct:1,
+      explanation:'По истечении дедлайна ctx.Done() закрывается, а ctx.Err() возвращает context.DeadlineExceeded. При ручной отмене через cancel() было бы context.Canceled.'
+    }
+  ]
+},
+{
   id:'stage2', depth:2, title:'Этап 2. Тестирование «из коробки»',
   theory:
     '<p>Тестовые функции имеют вид <code class="inline">func TestXxx(t *testing.T)</code> и находятся автоматически ' +
@@ -571,6 +705,75 @@ var TOPICS = [
       ],
       correct:1,
       explanation:'go test -cover ./... даёт только процент в консоли. Чтобы получить HTML-отчёт по конкретным строкам, нужно сначала сохранить профиль (-coverprofile), а затем открыть его через go tool cover -html.'
+    }
+  ]
+},
+{
+  id:'stage2a', depth:2, title:'Этап 2.1. Table-driven тесты и подтесты t.Run',
+  theory:
+    '<p>Табличные тесты (table-driven) — главная идиома тестирования в Go. Случаи описывают срезом структур ' +
+    '(имя, вход, ожидаемый результат), а затем в цикле прогоняют один и тот же код проверки. Добавить новый ' +
+    'случай — это одна строка в таблице, а не копипаст целого теста.</p>' +
+    '<p>Каждый случай оборачивают в подтест <code class="inline">t.Run(tc.name, func(t *testing.T){ ... })</code>. ' +
+    'Это даёт изолированные имена: при падении видно, какой именно случай сломался (<code class="inline">Test/' +
+    'negative</code>), и можно запустить только его: <code class="inline">go test -run TestAdd/negative</code>.</p>' +
+    '<p>Подтесты можно параллелить: <code class="inline">t.Parallel()</code> внутри <code class="inline">t.Run</code> ' +
+    'запустит случаи одновременно. На Go до 1.22 переменную цикла нужно было копировать ' +
+    '(<code class="inline">tc := tc</code>), иначе все подтесты видели последний элемент; с 1.22 это уже не нужно.</p>' +
+    hl('func TestAdd(t *testing.T) {\n' +
+       '    tests := []struct {\n' +
+       '        name     string\n' +
+       '        a, b     int\n' +
+       '        want     int\n' +
+       '    }{\n' +
+       '        {"positive", 2, 3, 5},\n' +
+       '        {"with zero", 0, 7, 7},\n' +
+       '        {"negative", -2, -3, -5},\n' +
+       '    }\n' +
+       '    for _, tc := range tests {\n' +
+       '        t.Run(tc.name, func(t *testing.T) {\n' +
+       '            if got := Add(tc.a, tc.b); got != tc.want {\n' +
+       '                t.Errorf("Add(%d, %d) = %d, want %d", tc.a, tc.b, got, tc.want)\n' +
+       '            }\n' +
+       '        })\n' +
+       '    }\n' +
+       '}'),
+  tasks:[
+    {
+      type:'write', id:'stage2a-1',
+      prompt:'Напишите табличный тест <code class="inline">TestAdd</code> для функции ' +
+             '<code class="inline">Add(a, b int) int</code>: срез структур со случаями (имя, a, b, ожидаемое), ' +
+             'цикл по ним и подтест <code class="inline">t.Run</code> с проверкой через ' +
+             '<code class="inline">t.Errorf</code>.',
+      checks:[
+        {label:'таблица случаев как []struct{...}', re:/\[\]struct\s*\{/},
+        {label:'цикл по случаям for ... range', re:/for\s+[^;]*range/},
+        {label:'подтесты через t.Run(', re:/t\.Run\(/},
+        {label:'проверка через t.Errorf или t.Fatalf', re:/t\.(Errorf|Fatalf)\(/}
+      ],
+      hint:'func TestAdd(t *testing.T) {\n    tests := []struct {\n        name string\n        a, b int\n        want int\n    }{\n        {"positive", 2, 3, 5},\n        {"negative", -2, -3, -5},\n    }\n    for _, tc := range tests {\n        t.Run(tc.name, func(t *testing.T) {\n            if got := Add(tc.a, tc.b); got != tc.want {\n                t.Errorf("Add(%d,%d)=%d, want %d", tc.a, tc.b, got, tc.want)\n            }\n        })\n    }\n}'
+    },
+    {
+      type:'write', id:'stage2a-2',
+      prompt:'Сделайте подтесты параллельными: внутри <code class="inline">t.Run</code> вызовите ' +
+             '<code class="inline">t.Parallel()</code>, чтобы случаи выполнялись одновременно.',
+      checks:[
+        {label:'есть подтест t.Run(', re:/t\.Run\(/},
+        {label:'внутри подтеста вызван t.Parallel()', re:/t\.Parallel\(\)/}
+      ],
+      hint:'for _, tc := range tests {\n    t.Run(tc.name, func(t *testing.T) {\n        t.Parallel()\n        if got := Add(tc.a, tc.b); got != tc.want {\n            t.Errorf("got %d, want %d", got, tc.want)\n        }\n    })\n}'
+    },
+    {
+      type:'choice', id:'stage2a-3',
+      prompt:'Зачем оборачивать случаи таблицы в подтесты <code class="inline">t.Run(name, ...)</code>?',
+      options:[
+        'Иначе тест не скомпилируется',
+        'Чтобы видеть, какой именно случай упал, и запускать его отдельно через go test -run Test/name',
+        'Чтобы ускорить компиляцию пакета',
+        'Это обязательное требование библиотеки testify'
+      ],
+      correct:1,
+      explanation:'Подтесты дают каждому случаю своё имя: падение показывает конкретный случай, его можно запустить изолированно через -run, и при желании параллелить через t.Parallel().'
     }
   ]
 },
